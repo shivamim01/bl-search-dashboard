@@ -411,12 +411,20 @@ for cat, data in KPI_GROUPS.items():
 if "custom_kpis_dict" not in st.session_state:
   st.session_state["custom_kpis_dict"] = {}
 
+if "excluded_days" not in st.session_state:
+  st.session_state["excluded_days"] = []
+
+if "excluded_dates" not in st.session_state:
+  st.session_state["excluded_dates"] = []
+
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
     st.session_state[f"selected_{cat}"] = [
         d for d in data["defaults"] if d in df.columns
     ]
   st.session_state["custom_kpis_dict"] = {}
+  st.session_state["excluded_days"] = []
+  st.session_state["excluded_dates"] = []
 
 # Apply Custom Calculated Fields directly onto df
 for c_name, c_info in st.session_state["custom_kpis_dict"].items():
@@ -437,11 +445,11 @@ for c_name, c_info in st.session_state["custom_kpis_dict"].items():
 st.title("⚡ Dynamic Performance Analytics")
 
 # =========================================================
-# TOP CONTROLS ROW
+# TOP CONTROLS ROW (EXCLUDE DAYS & DATES FUNCTIONAL POPOVERS)
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-  c1, c2, c3, c4 = st.columns([1.5, 1.5, 1, 1])
+  c1, c2, c3, c4 = st.columns([1.5, 1.5, 1.2, 1.2])
 
   with c1:
     max_date = (
@@ -468,14 +476,33 @@ with st.container():
 
   with c3:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.button("Exclude days", key="btn_ex_days", use_container_width=True)
+    # Exclude Days Popover
+    day_count = len(st.session_state["excluded_days"])
+    pop_days_label = f"Exclude Days ({day_count})" if day_count > 0 else "Exclude Days"
+    with st.popover(pop_days_label, use_container_width=True):
+      st.caption("Select days of the week to exclude from analysis:")
+      days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+      sel_days = st.multiselect("Select Days", days_list, default=st.session_state["excluded_days"], key="pop_sel_days")
+      if sel_days != st.session_state["excluded_days"]:
+        st.session_state["excluded_days"] = sel_days
+        st.rerun()
 
   with c4:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.button("Exclude dates", key="btn_ex_dates", use_container_width=True)
+    # Exclude Dates Popover
+    date_count = len(st.session_state["excluded_dates"])
+    pop_dates_label = f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
+    with st.popover(pop_dates_label, use_container_width=True):
+      st.caption("Select specific dates to exclude:")
+      sel_dates = st.date_input("Select Dates", value=st.session_state["excluded_dates"], key="pop_sel_dates")
+      if isinstance(sel_dates, (list, tuple)):
+        st.session_state["excluded_dates"] = list(sel_dates)
+      elif sel_dates:
+        st.session_state["excluded_dates"] = [sel_dates]
 
   st.markdown("</div>", unsafe_allow_html=True)
 
+# Generate Base Comparison Data
 selected_date = pd.to_datetime(selected_date)
 comparison_dates = [
     selected_date - timedelta(days=7 * i) for i in range(weeks_num)
@@ -483,6 +510,14 @@ comparison_dates = [
 comparison_df = df[
     df["Date"].dt.date.isin([d.date() for d in comparison_dates])
 ].sort_values("Date", ascending=False)
+
+# APPLY DYNAMIC DAY & DATE EXCLUSIONS
+if st.session_state["excluded_days"]:
+  comparison_df = comparison_df[~comparison_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
+
+if st.session_state["excluded_dates"]:
+  ex_date_strs = [pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]]
+  comparison_df = comparison_df[~comparison_df["Date"].dt.date.isin(ex_date_strs)]
 
 # =========================================================
 # KPI SELECTION PANEL
@@ -595,6 +630,8 @@ with tab1:
 
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
+  elif comparison_df.empty:
+    st.warning("⚠️ No data available for selected dates/filters. Please adjust your excluded days or dates.")
   else:
     tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.8, 1.2])
 
@@ -689,7 +726,7 @@ with tab1:
 
         html_code += "</tr>"
 
-      html_code += f"<tr class='avg-row'><td>Average of past {weeks_num} weeks</td>"
+      html_code += f"<tr class='avg-row'><td>Average of past {len(base_df)-1 if len(base_df)>1 else 1} weeks</td>"
       for metric in active_selected_kpis:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
       html_code += "</tr>"
@@ -707,7 +744,7 @@ with tab1:
       
       for idx, row in base_df.iterrows():
         html_code += f"<th>{row['Date'].strftime('%Y-%m-%d')}</th>"
-      html_code += f"<th>Avg ({weeks_num}W)</th><th>Best Ever</th></tr></thead><tbody>"
+      html_code += f"<th>Avg ({len(base_df)}W)</th><th>Best Ever</th></tr></thead><tbody>"
 
       base_row = base_df.iloc[0] if len(base_df) > 0 else None
 
@@ -735,7 +772,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS (WITH INDIVIDUAL TRENDS)
+# TAB 2: TREND ANALYSIS
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
@@ -762,7 +799,14 @@ with tab2:
         & (df["Date"].dt.date <= date_range[1])
     ]
 
-    # 1. COMBINED OVERVIEW CHART
+    # APPLY DAY & DATE EXCLUSIONS TO TRENDS
+    if st.session_state["excluded_days"]:
+      filtered_trend_df = filtered_trend_df[~filtered_trend_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
+
+    if st.session_state["excluded_dates"]:
+      ex_date_strs = [pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]]
+      filtered_trend_df = filtered_trend_df[~filtered_trend_df["Date"].dt.date.isin(ex_date_strs)]
+
     st.markdown("### Combined Overview")
     fig = go.Figure()
     for metric in active_selected_kpis:
@@ -794,7 +838,6 @@ with tab2:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    # 2. INDIVIDUAL KPI TREND CHARTS
     st.markdown("<hr style='margin: 32px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual KPI Trends")
 
