@@ -155,6 +155,13 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     color: #0284c7;
 }
 
+/* MODE SELECTION SEGMENTED CONTROL TABS */
+div[data-testid="stSegmentedControl"] button {
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 8px 24px !important;
+}
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -455,16 +462,6 @@ for cat, data in KPI_GROUPS.items():
 # =========================================================
 st.title("⚡ BL Search RCA DashBoard")
 
-# =========================================================
-# TOP LEVEL MODE SELECTION TABS
-# =========================================================
-mode_tabs = st.tabs([
-    "Previous Week Same Day",
-    "Date Range Comparison",
-    "Week on Week Comparison",
-    "Custom Compare",
-])
-
 max_data_date = (
     df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
 )
@@ -516,8 +513,27 @@ def render_exclusion_popovers(key_prefix: str):
         st.session_state["excluded_dates"] = [sel_dates]
 
 
-# MODE 1: PREVIOUS WEEK SAME DAY
-with mode_tabs[0]:
+# =========================================================
+# TOP LEVEL MODE SELECTION SWITCH (EXPLICIT ACTIVE STATE)
+# =========================================================
+selected_mode = st.segmented_control(
+    "Comparison Mode",
+    options=[
+        "Previous Week Same Day",
+        "Date Range Comparison",
+        "Week on Week Comparison",
+        "Custom Compare",
+    ],
+    default="Previous Week Same Day",
+    key="top_comparison_mode_switcher",
+    label_visibility="collapsed",
+)
+
+active_mode_df = pd.DataFrame()
+mode_view_type = "pwsd"
+
+# 1. MODE: PREVIOUS WEEK SAME DAY
+if selected_mode == "Previous Week Same Day":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     c1, c2, c3_4 = st.columns([1.5, 1.5, 2.4])
@@ -558,9 +574,8 @@ with mode_tabs[0]:
   ].sort_values("Date", ascending=False)
   mode_view_type = "pwsd"
 
-
-# MODE 2: DATE RANGE COMPARISON (CHRONOLOGICAL DAY-OVER-DAY)
-with mode_tabs[1]:
+# 2. MODE: DATE RANGE COMPARISON
+elif selected_mode == "Date Range Comparison":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     dc1, dc2 = st.columns([2.5, 3])
@@ -611,15 +626,13 @@ with mode_tabs[1]:
         selected_dr if not isinstance(selected_dr, (list, tuple)) else max_data_date,
     )
 
-  # Chronological sorting for Date Range mode (matching screenshot)
   active_mode_df = df[
       (df["Date"].dt.date >= start_d) & (df["Date"].dt.date <= end_d)
   ].sort_values("Date", ascending=True)
   mode_view_type = "date_range"
 
-
-# MODE 3: WEEK ON WEEK COMPARISON
-with mode_tabs[2]:
+# 3. MODE: WEEK ON WEEK COMPARISON
+elif selected_mode == "Week on Week Comparison":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     st.markdown("### Week on Week Comparison")
@@ -656,10 +669,10 @@ with mode_tabs[2]:
   ).head(wow_num)
   mode_view_type = "wow"
 
-
-# MODE 4: CUSTOM COMPARE
-with mode_tabs[3]:
+# 4. MODE: CUSTOM COMPARE
+else:
   st.info("💡 Select custom dates or dimensions for tailored comparisons.")
+  mode_view_type = "custom"
 
 
 # APPLY GLOBAL DAY AND DATE EXCLUSIONS
@@ -681,7 +694,7 @@ if st.session_state["excluded_dates"] and not active_mode_df.empty:
 trend_df = active_mode_df.sort_values("Date", ascending=True)
 
 # =========================================================
-# KPI SELECTION PANEL (SHARED ACROSS ALL MODES)
+# KPI SELECTION PANEL
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -894,7 +907,6 @@ with tab1:
 
       prev_row = None
 
-      # Loop over rows and compare each day to the previous row for Date Range mode
       for idx_num, (idx, row) in enumerate(base_df.iterrows()):
         date_str = (
             row["Date"].strftime("%Y-%m-%d - %a")
@@ -908,10 +920,8 @@ with tab1:
           formatted = fmt_val(val, metric)
 
           if idx_num == 0:
-            # First row - baseline number without % change badge
             html_code += f"<td>{formatted}</td>"
           else:
-            # Subsequent rows - compare against previous consecutive day (prev_row)
             ref_val = prev_row[metric] if prev_row is not None else 0
             pct_change = (
                 ((val - ref_val) / ref_val) * 100 if ref_val != 0 else 0
@@ -1009,7 +1019,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS (CONTINUOUS DAILY PLOTTING FOR DATE RANGE)
+# TAB 2: TREND ANALYSIS
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
