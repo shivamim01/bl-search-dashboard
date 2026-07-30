@@ -514,7 +514,7 @@ def render_exclusion_popovers(key_prefix: str):
 
 
 # =========================================================
-# TOP LEVEL MODE SELECTION SWITCH (EXPLICIT ACTIVE STATE)
+# TOP LEVEL MODE SELECTION SWITCH
 # =========================================================
 selected_mode = st.segmented_control(
     "Comparison Mode",
@@ -631,7 +631,7 @@ elif selected_mode == "Date Range Comparison":
   ].sort_values("Date", ascending=True)
   mode_view_type = "date_range"
 
-# 3. MODE: WEEK ON WEEK COMPARISON
+# 3. MODE: WEEK ON WEEK COMPARISON (CHRONOLOGICAL OLD-TO-NEW SORTING)
 elif selected_mode == "Week on Week Comparison":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -654,6 +654,7 @@ elif selected_mode == "Week on Week Comparison":
     st.markdown("</div>", unsafe_allow_html=True)
 
   df_wow = df.copy()
+  # Group by Sunday (Sunday start week)
   df_wow["Week_Start"] = df_wow["Date"].apply(
       lambda d: d - timedelta(days=(d.weekday() + 1) % 7)
   )
@@ -664,9 +665,10 @@ elif selected_mode == "Week on Week Comparison":
   )
   weekly_avg_df = weekly_avg_df.rename(columns={"Week_Start": "Date"})
 
+  # Select latest N completed weeks and sort chronologically (oldest week to newest week)
   active_mode_df = weekly_avg_df.sort_values(
       "Date", ascending=False
-  ).head(wow_num)
+  ).head(wow_num).sort_values("Date", ascending=True)
   mode_view_type = "wow"
 
 # 4. MODE: CUSTOM COMPARE
@@ -875,6 +877,7 @@ with tab1:
     base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
 
+    # Best ever calculations (weekly average or daily based on mode)
     best_values = {}
     for col in active_selected_kpis:
       if "zero" in col.lower() or "position" in col.lower():
@@ -892,7 +895,7 @@ with tab1:
       ):
         return f"{val:.1f}%"
       elif val > 1000:
-        return f"{val:,.0f}"
+        return f"{val:,.0f}" if val.is_integer() else f"{val:,.2f}"
       else:
         return f"{val:.2f}".rstrip("0").rstrip(".")
 
@@ -911,7 +914,7 @@ with tab1:
         date_str = (
             row["Date"].strftime("%Y-%m-%d - %a")
             if mode_view_type != "wow"
-            else f"Week of {row['Date'].strftime('%Y-%m-%d')}"
+            else f"Week of {row['Date'].strftime('%Y-%m-%d')} - Weekly Avg"
         )
         html_code += f"<tr><td style='font-weight:700;'>{date_str}</td>"
 
@@ -920,8 +923,10 @@ with tab1:
           formatted = fmt_val(val, metric)
 
           if idx_num == 0:
+            # Baseline week/day row without badge
             html_code += f"<td>{formatted}</td>"
           else:
+            # Consecutive week/day comparison relative to prev_row
             ref_val = prev_row[metric] if prev_row is not None else 0
             pct_change = (
                 ((val - ref_val) / ref_val) * 100 if ref_val != 0 else 0
@@ -935,7 +940,7 @@ with tab1:
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
 
             sub_avg_html = ""
-            if idx_num == len(base_df) - 1 and mode_view_type != "date_range":
+            if idx_num == len(base_df) - 1:
               avg_v = avg_values[metric]
               vs_avg_pct = ((val - avg_v) / avg_v) * 100 if avg_v != 0 else 0
               sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
@@ -948,16 +953,26 @@ with tab1:
         prev_row = row
         html_code += "</tr>"
 
-      html_code += (
-          f"<tr class='avg-row'><td>Average of Selected Period</td>"
+      # Average Row Label based on mode
+      avg_lbl = (
+          "Average of Selected Weeks"
+          if mode_view_type == "wow"
+          else "Average of Selected Period"
       )
+      html_code += f"<tr class='avg-row'><td>{avg_lbl}</td>"
       for metric in active_selected_kpis:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
       html_code += "</tr>"
 
+      # Best Ever Row Label based on mode
+      best_lbl = (
+          "Best Ever (Weekly Avg)"
+          if mode_view_type == "wow"
+          else "Best Ever (Daily)"
+      )
       html_code += (
-          "<tr class='best-row'><td style='color:#0284c7;"
-          " font-weight:800;'>Best Ever</td>"
+          f"<tr class='best-row'><td style='color:#0284c7;"
+          f" font-weight:800;'>{best_lbl}</td>"
       )
       for metric in active_selected_kpis:
         html_code += (
@@ -969,6 +984,7 @@ with tab1:
       html_code += "</tbody></table></div>"
 
     else:
+      # TRANSPOSED VIEW
       html_code = (
           "<div class='custom-table-container'><table class='custom-table'>"
       )
@@ -981,9 +997,7 @@ with tab1:
             else f"Wk {row['Date'].strftime('%m-%d')}"
         )
         html_code += f"<th>{d_lbl}</th>"
-      html_code += (
-          f"<th>Avg</th><th>Best Ever</th></tr></thead><tbody>"
-      )
+      html_code += "<th>Avg</th><th>Best Ever</th></tr></thead><tbody>"
 
       for metric in active_selected_kpis:
         html_code += (
@@ -1000,7 +1014,9 @@ with tab1:
             html_code += f"<td>{formatted}</td>"
           else:
             pct_change = (
-                ((val - prev_val) / prev_val * 100) if prev_val != 0 and prev_val is not None else 0
+                ((val - prev_val) / prev_val * 100)
+                if prev_val != 0 and prev_val is not None
+                else 0
             )
             badge_cls = "badge-pos" if pct_change >= 0 else "badge-neg"
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
@@ -1038,7 +1054,7 @@ with tab2:
     x_dates_formatted = (
         trend_df["Date"].dt.strftime("%Y-%m-%d - %a")
         if mode_view_type != "wow"
-        else trend_df["Date"].dt.strftime("Wk %Y-%m-%d")
+        else trend_df["Date"].dt.strftime("Week of %Y-%m-%d - Weekly Avg")
     )
 
     st.markdown("### Combined Overview")
