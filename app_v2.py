@@ -1,5 +1,6 @@
 from datetime import timedelta
 import io
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import requests
@@ -16,7 +17,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS FOR LEGIBILITY & HIGH-CONTRAST CHIPS
+# CUSTOM CSS FOR MATCHING TABLE & CHIP UI
 # =========================================================
 st.markdown(
     """
@@ -49,10 +50,6 @@ html, body, [class*="css"] {
 }
 
 /* CUSTOM STYLING FOR NATIVE STREAMLIT PILLS */
-div[data-testid="stPills"] {
-    gap: 8px !important;
-}
-
 div[data-testid="stPills"] button {
     font-size: 16px !important;
     font-weight: 600 !important;
@@ -60,7 +57,6 @@ div[data-testid="stPills"] button {
     padding: 6px 18px !important;
 }
 
-/* ACTIVE HIGHLIGHT COLOR FOR SELECTED PILLS */
 div[data-testid="stPills"] button[aria-selected="true"] {
     background-color: #fef2f2 !important;
     color: #ef4444 !important;
@@ -68,27 +64,94 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     font-weight: 700 !important;
 }
 
-/* DATAFRAME & TABLE STYLING */
-[data-testid="stDataFrame"] {
-    font-size: 20px !important;
+/* DYNAMIC TABLE HTML STYLING */
+.custom-table-container {
+    width: 100%;
+    overflow-x: auto;
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    margin-top: 16px;
 }
 
-thead tr th {
-    font-size: 21px !important;
-    font-weight: 800 !important;
-    background-color: #f1f5f9 !important;
-    color: #0f172a !important;
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 18px;
 }
 
-tbody tr td {
-    font-size: 19px !important;
-    padding: 12px !important;
+.custom-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    padding: 18px 16px;
+    border-bottom: 1.5px solid #e2e8f0;
+    border-right: 1px solid #f1f5f9;
 }
 
-/* TABS STYLING */
-button[data-baseweb="tab"] div {
-    font-size: 22px !important;
-    font-weight: 700 !important;
+.custom-table td {
+    padding: 16px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    color: #1e293b;
+    vertical-align: middle;
+}
+
+.custom-table tr:hover {
+    background-color: #f8fafc;
+}
+
+/* PERCENTAGE BADGES */
+.badge-pos {
+    color: #10b981;
+    font-weight: 700;
+    font-size: 16px;
+    margin-left: 6px;
+}
+
+.badge-neg {
+    color: #ef4444;
+    font-weight: 700;
+    font-size: 16px;
+    margin-left: 6px;
+}
+
+.badge-neutral {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 16px;
+    margin-left: 6px;
+}
+
+.sub-avg-pos {
+    display: block;
+    font-size: 14px;
+    color: #10b981;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.sub-avg-neg {
+    display: block;
+    font-size: 14px;
+    color: #ef4444;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+/* SUMMARY ROWS */
+.avg-row {
+    background-color: #ffffff;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.best-row {
+    background-color: #ffffff;
+    font-weight: 800;
+    color: #0284c7;
 }
 
 </style>
@@ -346,10 +409,13 @@ for cat, data in KPI_GROUPS.items():
   if key not in st.session_state:
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
+if "custom_calc_kpis" not in st.session_state:
+  st.session_state["custom_calc_kpis"] = []
+
 # =========================================================
 # DASHBOARD TITLE
 # =========================================================
-st.title("⚡ BL Search Analytics")
+st.title("⚡ Dynamic Performance Analytics")
 
 # =========================================================
 # TOP CONTROLS ROW
@@ -400,12 +466,11 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 # =========================================================
-# KPI SELECTION PANEL (USING NATIVE ST.PILLS FOR RELIABLE HIGHLIGHTS)
+# KPI SELECTION PANEL
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
-  # Header Actions
   hdr1, hdr2, hdr3, hdr4 = st.columns([1.2, 2.5, 1, 1])
 
   with hdr1:
@@ -437,7 +502,7 @@ with st.container():
 
   st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
 
-  # Render Rows using st.pills
+  # Render Category Rows using st.pills
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
 
@@ -464,7 +529,6 @@ with st.container():
       )
 
     with col_chips:
-      # Native Streamlit Pills for reliable selection and CSS highlighting
       selected_pills = st.pills(
           label=cat,
           options=visible_metrics,
@@ -474,8 +538,6 @@ with st.container():
           label_visibility="collapsed",
       )
       
-      # Sync selected pills with session state
-      # Preserve selected metrics from the "More" overflow if collapsed
       overflow_selected = [
           m for m in st.session_state[f"selected_{cat}"] if m in available_metrics and m not in visible_metrics
       ]
@@ -492,40 +554,195 @@ with st.container():
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Collect all currently active selected KPIs across categories
+# Active Selected KPIs
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
   for metric in st.session_state[f"selected_{cat}"]:
     if metric not in active_selected_kpis:
       active_selected_kpis.append(metric)
 
+# Add custom calculated fields if active
+for calc_metric in st.session_state["custom_calc_kpis"]:
+  if calc_metric not in active_selected_kpis:
+    active_selected_kpis.append(calc_metric)
+
 # =========================================================
 # DASHBOARD TABS
 # =========================================================
 tab1, tab2, tab3 = st.tabs(
-    ["📊 KPI Comparison Table", "📈 Trend Visualizations", "📋 Raw Sheet Data"]
+    ["⚡ Dynamic Performance Table", "📈 Trend Visualizations", "📋 Raw Sheet Data"]
 )
 
 # =========================================================
-# TAB 1: KPI COMPARISON TABLE
+# TAB 1: EXACT DYNAMIC PERFORMANCE ANALYSIS TABLE
 # =========================================================
 with tab1:
-  st.markdown("## KPI Comparison Table")
+  st.markdown("## ⚡ Dynamic Performance Analysis Table")
 
   if not active_selected_kpis:
-    st.info("💡 Please click on KPI chips above to select analytics.")
+    st.info("💡 Please select KPI chips above to display the analysis table.")
   else:
-    table_df = comparison_df[["Date"] + active_selected_kpis].copy()
-    table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
+    # TOOLBAR MATCHING SCREENSHOT
+    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.5, 1.5])
 
-    st.download_button(
-        "⬇ Export Table CSV",
-        data=table_df.to_csv(index=False),
-        file_name="kpi_comparison.csv",
-        mime="text/csv",
-    )
+    with tb1:
+      transpose = st.toggle("⇄ Transpose Table", value=False)
 
-    st.dataframe(table_df, use_container_width=True, height=520)
+    with tb2:
+      if st.button("🔄 Refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+    with tb3:
+      if st.button("⏮ Reset KPIs", use_container_width=True):
+        for cat, data in KPI_GROUPS.items():
+          st.session_state[f"selected_{cat}"] = [
+              d for d in data["defaults"] if d in df.columns
+          ]
+        st.session_state["custom_calc_kpis"] = []
+        st.rerun()
+
+    with tb4:
+      new_calc = st.selectbox(
+          "➕ Add Calc KPI",
+          ["Select Formula...", "Txn / Searcher %", "NI / Searcher %", "Zero Result %"],
+          label_visibility="collapsed"
+      )
+      if new_calc != "Select Formula...":
+        if new_calc == "Txn / Searcher %" and "Transactor/Searcher" in df.columns:
+          if "Transactor/Searcher" not in st.session_state["custom_calc_kpis"]:
+            st.session_state["custom_calc_kpis"].append("Transactor/Searcher")
+            st.rerun()
+
+    with tb5:
+      st.button("📝 Add Comment", use_container_width=True)
+
+    # BUILD CUSTOM HTML PERFORMANCE TABLE
+    base_df = comparison_df[["Date"] + active_selected_kpis].copy()
+    
+    # Calculate historical averages and best-ever values
+    avg_values = base_df[active_selected_kpis].mean()
+    
+    # Best Ever Daily scan
+    best_values = {}
+    for col in active_selected_kpis:
+      if "zero" in col.lower() or "position" in col.lower():
+        best_values[col] = df[col].min()  # Lower is better for zero-result/position
+      else:
+        best_values[col] = df[col].max()  # Higher is better
+
+    # Formatter helper
+    def fmt_val(val, metric):
+      if "%" in metric or "Txn/100" in metric or "Transactor/" in metric or "NI/TXN" in metric:
+        return f"{val:.1f}%"
+      elif val > 1000:
+        return f"{val:,.0f}"
+      else:
+        return f"{val:.2f}".rstrip('0').rstrip('.')
+
+    if not transpose:
+      # STANDARD ROW VIEW
+      html_code = "<div class='custom-table-container'><table class='custom-table'>"
+      
+      # Header
+      html_code += "<thead><tr><th>Date</th>"
+      for metric in active_selected_kpis:
+        html_code += f"<th>{metric}</th>"
+      html_code += "</tr></thead><tbody>"
+
+      base_row = base_df.iloc[0] if len(base_df) > 0 else None
+
+      # Render Data Rows
+      for idx, row in base_df.iterrows():
+        date_str = row["Date"].strftime("%Y-%m-%d - %a")
+        html_code += f"<tr><td style='font-weight:700;'>{date_str}</td>"
+
+        for metric in active_selected_kpis:
+          val = row[metric]
+          formatted = fmt_val(val, metric)
+
+          if idx == base_df.index[0]:
+            # Base Date Row - plain number
+            html_code += f"<td>{formatted}</td>"
+          else:
+            # Comparison Row with % Change
+            base_val = base_row[metric] if base_row is not None else 0
+            if base_val != 0:
+              pct_change = ((val - base_val) / base_val) * 100
+            else:
+              pct_change = 0
+
+            # Green for positive, red for negative
+            if pct_change > 0:
+              badge = f"<span class='badge-pos'>+{pct_change:.1f}%</span>"
+            elif pct_change < 0:
+              badge = f"<span class='badge-neg'>{pct_change:.1f}%</span>"
+            else:
+              badge = "<span class='badge-neutral'>+0.0%</span>"
+
+            # Add "vs Avg" sub-badge for the last comparison row
+            sub_avg_html = ""
+            if idx == base_df.index[-1]:
+              avg_v = avg_values[metric]
+              if avg_v != 0:
+                vs_avg_pct = ((val - avg_v) / avg_v) * 100
+              else:
+                vs_avg_pct = 0
+              
+              sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
+              sub_avg_html = f"<span class='{sub_cls}'>vs Avg: {vs_avg_pct:+.1f}%</span>"
+
+            html_code += f"<td>{formatted} {badge}{sub_avg_html}</td>"
+
+        html_code += "</tr>"
+
+      # Average Row
+      html_code += f"<tr class='avg-row'><td>Average of past {weeks_num} weeks</td>"
+      for metric in active_selected_kpis:
+        html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
+      html_code += "</tr>"
+
+      # Best Ever Row
+      html_code += "<tr class='best-row'><td style='color:#0284c7; font-weight:800;'>Best Ever (Daily)</td>"
+      for metric in active_selected_kpis:
+        html_code += f"<td style='color:#0284c7; font-weight:800;'>{fmt_val(best_values[metric], metric)}</td>"
+      html_code += "</tr>"
+
+      html_code += "tbody></table></div>"
+
+    else:
+      # TRANSPOSED COLUMN VIEW
+      html_code = "<div class='custom-table-container'><table class='custom-table'>"
+      html_code += "<thead><tr><th>KPI / Metric</th>"
+      
+      for idx, row in base_df.iterrows():
+        html_code += f"<th>{row['Date'].strftime('%Y-%m-%d')}</th>"
+      html_code += f"<th>Avg ({weeks_num}W)</th><th>Best Ever</th></tr></thead><tbody>"
+
+      base_row = base_df.iloc[0] if len(base_df) > 0 else None
+
+      for metric in active_selected_kpis:
+        html_code += f"<tr><td style='font-weight:700; text-align:left; padding-left:20px;'>{metric}</td>"
+        base_val = base_row[metric] if base_row is not None else 0
+
+        for idx, row in base_df.iterrows():
+          val = row[metric]
+          formatted = fmt_val(val, metric)
+
+          if idx == base_df.index[0]:
+            html_code += f"<td>{formatted}</td>"
+          else:
+            pct_change = ((val - base_val) / base_val * 100) if base_val != 0 else 0
+            badge_cls = "badge-pos" if pct_change >= 0 else "badge-neg"
+            badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
+            html_code += f"<td>{formatted} {badge}</td>"
+
+        html_code += f"<td style='font-weight:700;'>{fmt_val(avg_values[metric], metric)}</td>"
+        html_code += f"<td style='color:#0284c7; font-weight:800;'>{fmt_val(best_values[metric], metric)}</td></tr>"
+
+      html_code += "tbody></table></div>"
+
+    st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
 # TAB 2: TREND ANALYSIS
