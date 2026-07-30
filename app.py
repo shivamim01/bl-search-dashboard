@@ -411,7 +411,6 @@ for cat, data in KPI_GROUPS.items():
 if "custom_kpis_dict" not in st.session_state:
   st.session_state["custom_kpis_dict"] = {}
 
-# Helper Function: Reset KPIs to Strict Defaults (Requirement 1)
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
     st.session_state[f"selected_{cat}"] = [
@@ -519,7 +518,6 @@ with st.container():
 
   st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
 
-  # Render Category Rows using st.pills
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
 
@@ -578,7 +576,6 @@ for cat in KPI_GROUPS.keys():
     if metric not in active_selected_kpis:
       active_selected_kpis.append(metric)
 
-# Append custom calculated fields to active selected list
 for c_name in st.session_state["custom_kpis_dict"].keys():
   if c_name not in active_selected_kpis:
     active_selected_kpis.append(c_name)
@@ -591,7 +588,7 @@ tab1, tab2, tab3 = st.tabs(
 )
 
 # =========================================================
-# TAB 1: EXACT DYNAMIC PERFORMANCE ANALYSIS TABLE
+# TAB 1: DYNAMIC PERFORMANCE ANALYSIS TABLE
 # =========================================================
 with tab1:
   st.markdown("## ⚡ Dynamic Performance Analysis Table")
@@ -599,7 +596,6 @@ with tab1:
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
   else:
-    # TOOLBAR MATCHING SCREENSHOT 2
     tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.8, 1.2])
 
     with tb1:
@@ -611,13 +607,11 @@ with tab1:
         st.rerun()
 
     with tb3:
-      # Requirement 1: Reset KPIs strictly removes all non-defaults
       if st.button("⏮ Reset KPIs", use_container_width=True):
         reset_to_strict_defaults()
         st.rerun()
 
     with tb4:
-      # Requirement 2: Popover Modal Matching Screenshot 2
       with st.popover("➕ Add Calc KPI", use_container_width=True):
         st.caption("Create a dynamic metric from existing data.")
         
@@ -640,10 +634,7 @@ with tab1:
     with tb5:
       st.button("📝 Comment", use_container_width=True)
 
-    # BUILD CUSTOM HTML PERFORMANCE TABLE
     base_df = comparison_df[["Date"] + active_selected_kpis].copy()
-    
-    # Calculate historical averages and best-ever values
     avg_values = base_df[active_selected_kpis].mean()
     
     best_values = {}
@@ -662,10 +653,7 @@ with tab1:
         return f"{val:.2f}".rstrip('0').rstrip('.')
 
     if not transpose:
-      # STANDARD ROW VIEW
       html_code = "<div class='custom-table-container'><table class='custom-table'>"
-      
-      # Header
       html_code += "<thead><tr><th>Date</th>"
       for metric in active_selected_kpis:
         html_code += f"<th>{metric}</th>"
@@ -701,13 +689,11 @@ with tab1:
 
         html_code += "</tr>"
 
-      # Average Row
       html_code += f"<tr class='avg-row'><td>Average of past {weeks_num} weeks</td>"
       for metric in active_selected_kpis:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
       html_code += "</tr>"
 
-      # Best Ever Row
       html_code += "<tr class='best-row'><td style='color:#0284c7; font-weight:800;'>Best Ever (Daily)</td>"
       for metric in active_selected_kpis:
         html_code += f"<td style='color:#0284c7; font-weight:800;'>{fmt_val(best_values[metric], metric)}</td>"
@@ -716,7 +702,6 @@ with tab1:
       html_code += "tbody></table></div>"
 
     else:
-      # TRANSPOSED COLUMN VIEW
       html_code = "<div class='custom-table-container'><table class='custom-table'>"
       html_code += "<thead><tr><th>KPI / Metric</th>"
       
@@ -750,10 +735,10 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS
+# TAB 2: TREND ANALYSIS (WITH INDIVIDUAL TRENDS)
 # =========================================================
 with tab2:
-  st.markdown("## Trend Visualizations")
+  st.markdown("## 📈 Trend Visualizations")
 
   if not active_selected_kpis:
     st.info("💡 Select KPI chips above to display visual trends.")
@@ -777,6 +762,8 @@ with tab2:
         & (df["Date"].dt.date <= date_range[1])
     ]
 
+    # 1. COMBINED OVERVIEW CHART
+    st.markdown("### Combined Overview")
     fig = go.Figure()
     for metric in active_selected_kpis:
       if metric in filtered_trend_df.columns:
@@ -801,11 +788,52 @@ with tab2:
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=550,
+        height=500,
         font=dict(size=18),
         margin=dict(l=20, r=20, t=30, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
+
+    # 2. INDIVIDUAL KPI TREND CHARTS
+    st.markdown("<hr style='margin: 32px 0;'>", unsafe_allow_html=True)
+    st.markdown("### Individual KPI Trends")
+
+    ind_cols = st.columns(2)
+    for idx, metric in enumerate(active_selected_kpis):
+      if metric in filtered_trend_df.columns:
+        with ind_cols[idx % 2]:
+          st.markdown(f"#### {metric}")
+          fig_ind = go.Figure()
+
+          if chart_type == "Line Chart":
+            fig_ind.add_trace(
+                go.Scatter(
+                    x=filtered_trend_df["Date"],
+                    y=filtered_trend_df[metric],
+                    mode="lines+markers",
+                    name=metric,
+                    line=dict(color="#0284c7", width=3),
+                )
+            )
+          else:
+            fig_ind.add_trace(
+                go.Bar(
+                    x=filtered_trend_df["Date"],
+                    y=filtered_trend_df[metric],
+                    name=metric,
+                    marker=dict(color="#0284c7"),
+                )
+            )
+
+          fig_ind.update_layout(
+              template="plotly_white",
+              hovermode="x unified",
+              height=380,
+              font=dict(size=16),
+              margin=dict(l=20, r=20, t=30, b=20),
+              showlegend=False,
+          )
+          st.plotly_chart(fig_ind, use_container_width=True)
 
 # =========================================================
 # TAB 3: RAW DATA
