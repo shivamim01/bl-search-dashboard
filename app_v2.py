@@ -417,13 +417,15 @@ if "excluded_days" not in st.session_state:
 if "excluded_dates" not in st.session_state:
   st.session_state["excluded_dates"] = []
 
-# Helper Function: Reset strictly back to defaults
+
+# FIXED: Explicitly sync st.pills widget keys when resetting
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
-    st.session_state[f"selected_{cat}"] = [
-        d for d in data["defaults"] if d in df.columns
-    ]
+    defaults = [d for d in data["defaults"] if d in df.columns]
+    st.session_state[f"selected_{cat}"] = defaults
+    st.session_state[f"pills_{cat}"] = defaults  # Synchronize visual widget state
   st.session_state["custom_kpis_dict"] = {}
+
 
 # Apply Custom Calculated Fields directly onto df
 for c_name, c_info in st.session_state["custom_kpis_dict"].items():
@@ -476,11 +478,26 @@ with st.container():
   with c3:
     st.markdown("<br>", unsafe_allow_html=True)
     day_count = len(st.session_state["excluded_days"])
-    pop_days_label = f"Exclude Days ({day_count})" if day_count > 0 else "Exclude Days"
+    pop_days_label = (
+        f"Exclude Days ({day_count})" if day_count > 0 else "Exclude Days"
+    )
     with st.popover(pop_days_label, use_container_width=True):
       st.caption("Select days of the week to exclude from analysis:")
-      days_list = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-      sel_days = st.multiselect("Select Days", days_list, default=st.session_state["excluded_days"], key="pop_sel_days")
+      days_list = [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+      ]
+      sel_days = st.multiselect(
+          "Select Days",
+          days_list,
+          default=st.session_state["excluded_days"],
+          key="pop_sel_days",
+      )
       if sel_days != st.session_state["excluded_days"]:
         st.session_state["excluded_days"] = sel_days
         st.rerun()
@@ -488,10 +505,16 @@ with st.container():
   with c4:
     st.markdown("<br>", unsafe_allow_html=True)
     date_count = len(st.session_state["excluded_dates"])
-    pop_dates_label = f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
+    pop_dates_label = (
+        f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
+    )
     with st.popover(pop_dates_label, use_container_width=True):
       st.caption("Select specific dates to exclude:")
-      sel_dates = st.date_input("Select Dates", value=st.session_state["excluded_dates"], key="pop_sel_dates")
+      sel_dates = st.date_input(
+          "Select Dates",
+          value=st.session_state["excluded_dates"],
+          key="pop_sel_dates",
+      )
       if isinstance(sel_dates, (list, tuple)):
         st.session_state["excluded_dates"] = list(sel_dates)
       elif sel_dates:
@@ -509,11 +532,19 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 if st.session_state["excluded_days"]:
-  comparison_df = comparison_df[~comparison_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
+  comparison_df = comparison_df[
+      ~comparison_df["Date"]
+      .dt.day_name()
+      .isin(st.session_state["excluded_days"])
+  ]
 
 if st.session_state["excluded_dates"]:
-  ex_date_strs = [pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]]
-  comparison_df = comparison_df[~comparison_df["Date"].dt.date.isin(ex_date_strs)]
+  ex_date_strs = [
+      pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]
+  ]
+  comparison_df = comparison_df[
+      ~comparison_df["Date"].dt.date.isin(ex_date_strs)
+  ]
 
 # =========================================================
 # KPI SELECTION PANEL
@@ -521,7 +552,6 @@ if st.session_state["excluded_dates"]:
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
-  # Cleaned header with ONLY Search bar and "Reset Defaults" button
   hdr1, hdr2, hdr3 = st.columns([1.5, 3.5, 1.5])
 
   with hdr1:
@@ -538,11 +568,16 @@ with st.container():
     ).strip().lower()
 
   with hdr3:
-    if st.button("🔄 Reset Defaults", key="reset_top", use_container_width=True):
+    if st.button(
+        "🔄 Reset Defaults", key="reset_top", use_container_width=True
+    ):
       reset_to_strict_defaults()
       st.rerun()
 
-  st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
+  st.markdown(
+      "<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>",
+      unsafe_allow_html=True,
+  )
 
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
@@ -573,25 +608,37 @@ with st.container():
       selected_pills = st.pills(
           label=cat,
           options=visible_metrics,
-          default=[m for m in st.session_state[f"selected_{cat}"] if m in visible_metrics],
+          default=[
+              m
+              for m in st.session_state[f"selected_{cat}"]
+              if m in visible_metrics
+          ],
           selection_mode="multi",
           key=f"pills_{cat}",
           label_visibility="collapsed",
       )
-      
+
       overflow_selected = [
-          m for m in st.session_state[f"selected_{cat}"] if m in available_metrics and m not in visible_metrics
+          m
+          for m in st.session_state[f"selected_{cat}"]
+          if m in available_metrics and m not in visible_metrics
       ]
       st.session_state[f"selected_{cat}"] = selected_pills + overflow_selected
 
     with col_more:
       if len(available_metrics) > 5:
-        is_toggled = st.toggle("More", value=st.session_state[show_more_key], key=f"toggle_{cat}")
+        is_toggled = st.toggle(
+            "More",
+            value=st.session_state[show_more_key],
+            key=f"toggle_{cat}",
+        )
         if is_toggled != st.session_state[show_more_key]:
           st.session_state[show_more_key] = is_toggled
           st.rerun()
 
-    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True
+    )
 
   st.markdown("</div>", unsafe_allow_html=True)
 
@@ -622,7 +669,10 @@ with tab1:
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
   elif comparison_df.empty:
-    st.warning("⚠️ No data available for selected dates/filters. Please adjust your excluded days or dates.")
+    st.warning(
+        "⚠️ No data available for selected dates/filters. Please adjust your"
+        " excluded days or dates."
+    )
   else:
     tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.8, 1.2])
 
@@ -642,20 +692,35 @@ with tab1:
     with tb4:
       with st.popover("➕ Add Calc KPI", use_container_width=True):
         st.caption("Create a dynamic metric from existing data.")
-        
+
         all_numeric_cols = [c for c in df.columns if c != "Date"]
-        
-        base_metric = st.selectbox("Base Metric (A)", all_numeric_cols, key="calc_base_m")
-        op_selected = st.selectbox("Operation", ["÷ (Ratio A/B)", "× (Multiply A*B)", "+ (Add A+B)", "- (Subtract A-B)"], key="calc_op")
-        sec_metric = st.selectbox("Secondary Metric (B)", all_numeric_cols, key="calc_sec_m")
-        new_name = st.text_input("New Metric Name", value="Custom Ratio", key="calc_name_input").strip()
+
+        base_metric = st.selectbox(
+            "Base Metric (A)", all_numeric_cols, key="calc_base_m"
+        )
+        op_selected = st.selectbox(
+            "Operation",
+            [
+                "÷ (Ratio A/B)",
+                "× (Multiply A*B)",
+                "+ (Add A+B)",
+                "- (Subtract A-B)",
+            ],
+            key="calc_op",
+        )
+        sec_metric = st.selectbox(
+            "Secondary Metric (B)", all_numeric_cols, key="calc_sec_m"
+        )
+        new_name = st.text_input(
+            "New Metric Name", value="Custom Ratio", key="calc_name_input"
+        ).strip()
 
         if st.button("Create Custom KPI", use_container_width=True):
           if new_name:
             st.session_state["custom_kpis_dict"][new_name] = {
                 "a": base_metric,
                 "op": op_selected,
-                "b": sec_metric
+                "b": sec_metric,
             }
             st.rerun()
 
@@ -664,7 +729,7 @@ with tab1:
 
     base_df = comparison_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
-    
+
     best_values = {}
     for col in active_selected_kpis:
       if "zero" in col.lower() or "position" in col.lower():
@@ -673,15 +738,23 @@ with tab1:
         best_values[col] = df[col].max()
 
     def fmt_val(val, metric):
-      if "%" in metric or "Txn/100" in metric or "Transactor/" in metric or "Ratio" in metric or "NI/TXN" in metric:
+      if (
+          "%" in metric
+          or "Txn/100" in metric
+          or "Transactor/" in metric
+          or "Ratio" in metric
+          or "NI/TXN" in metric
+      ):
         return f"{val:.1f}%"
       elif val > 1000:
         return f"{val:,.0f}"
       else:
-        return f"{val:.2f}".rstrip('0').rstrip('.')
+        return f"{val:.2f}".rstrip("0").rstrip(".")
 
     if not transpose:
-      html_code = "<div class='custom-table-container'><table class='custom-table'>"
+      html_code = (
+          "<div class='custom-table-container'><table class='custom-table'>"
+      )
       html_code += "<thead><tr><th>Date</th>"
       for metric in active_selected_kpis:
         html_code += f"<th>{metric}</th>"
@@ -701,46 +774,70 @@ with tab1:
             html_code += f"<td>{formatted}</td>"
           else:
             base_val = base_row[metric] if base_row is not None else 0
-            pct_change = (((val - base_val) / base_val) * 100) if base_val != 0 else 0
+            pct_change = (
+                ((val - base_val) / base_val) * 100 if base_val != 0 else 0
+            )
 
-            badge_cls = "badge-pos" if pct_change > 0 else ("badge-neg" if pct_change < 0 else "badge-neutral")
+            badge_cls = (
+                "badge-pos"
+                if pct_change > 0
+                else ("badge-neg" if pct_change < 0 else "badge-neutral")
+            )
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
 
             sub_avg_html = ""
             if idx == base_df.index[-1]:
               avg_v = avg_values[metric]
-              vs_avg_pct = (((val - avg_v) / avg_v) * 100) if avg_v != 0 else 0
+              vs_avg_pct = ((val - avg_v) / avg_v) * 100 if avg_v != 0 else 0
               sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
-              sub_avg_html = f"<span class='{sub_cls}'>vs Avg: {vs_avg_pct:+.1f}%</span>"
+              sub_avg_html = (
+                  f"<span class='{sub_cls}'>vs Avg: {vs_avg_pct:+.1f}%</span>"
+              )
 
             html_code += f"<td>{formatted} {badge}{sub_avg_html}</td>"
 
         html_code += "</tr>"
 
-      html_code += f"<tr class='avg-row'><td>Average of past {len(base_df)-1 if len(base_df)>1 else 1} weeks</td>"
+      html_code += (
+          f"<tr class='avg-row'><td>Average of past"
+          f" {len(base_df)-1 if len(base_df)>1 else 1} weeks</td>"
+      )
       for metric in active_selected_kpis:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
       html_code += "</tr>"
 
-      html_code += "<tr class='best-row'><td style='color:#0284c7; font-weight:800;'>Best Ever (Daily)</td>"
+      html_code += (
+          "<tr class='best-row'><td style='color:#0284c7;"
+          " font-weight:800;'>Best Ever (Daily)</td>"
+      )
       for metric in active_selected_kpis:
-        html_code += f"<td style='color:#0284c7; font-weight:800;'>{fmt_val(best_values[metric], metric)}</td>"
+        html_code += (
+            f"<td style='color:#0284c7;"
+            f" font-weight:800;'>{fmt_val(best_values[metric], metric)}</td>"
+        )
       html_code += "</tr>"
 
       html_code += "tbody></table></div>"
 
     else:
-      html_code = "<div class='custom-table-container'><table class='custom-table'>"
+      html_code = (
+          "<div class='custom-table-container'><table class='custom-table'>"
+      )
       html_code += "<thead><tr><th>KPI / Metric</th>"
-      
+
       for idx, row in base_df.iterrows():
         html_code += f"<th>{row['Date'].strftime('%Y-%m-%d')}</th>"
-      html_code += f"<th>Avg ({len(base_df)}W)</th><th>Best Ever</th></tr></thead><tbody>"
+      html_code += (
+          f"<th>Avg ({len(base_df)}W)</th><th>Best Ever</th></tr></thead><tbody>"
+      )
 
       base_row = base_df.iloc[0] if len(base_df) > 0 else None
 
       for metric in active_selected_kpis:
-        html_code += f"<tr><td style='font-weight:700; text-align:left; padding-left:20px;'>{metric}</td>"
+        html_code += (
+            f"<tr><td style='font-weight:700; text-align:left;"
+            f" padding-left:20px;'>{metric}</td>"
+        )
         base_val = base_row[metric] if base_row is not None else 0
 
         for idx, row in base_df.iterrows():
@@ -750,13 +847,18 @@ with tab1:
           if idx == base_df.index[0]:
             html_code += f"<td>{formatted}</td>"
           else:
-            pct_change = ((val - base_val) / base_val * 100) if base_val != 0 else 0
+            pct_change = (
+                ((val - base_val) / base_val * 100) if base_val != 0 else 0
+            )
             badge_cls = "badge-pos" if pct_change >= 0 else "badge-neg"
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
             html_code += f"<td>{formatted} {badge}</td>"
 
         html_code += f"<td style='font-weight:700;'>{fmt_val(avg_values[metric], metric)}</td>"
-        html_code += f"<td style='color:#0284c7; font-weight:800;'>{fmt_val(best_values[metric], metric)}</td></tr>"
+        html_code += (
+            f"<td style='color:#0284c7;"
+            f" font-weight:800;'>{fmt_val(best_values[metric], metric)}</td></tr>"
+        )
 
       html_code += "tbody></table></div>"
 
@@ -791,11 +893,19 @@ with tab2:
     ]
 
     if st.session_state["excluded_days"]:
-      filtered_trend_df = filtered_trend_df[~filtered_trend_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
+      filtered_trend_df = filtered_trend_df[
+          ~filtered_trend_df["Date"]
+          .dt.day_name()
+          .isin(st.session_state["excluded_days"])
+      ]
 
     if st.session_state["excluded_dates"]:
-      ex_date_strs = [pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]]
-      filtered_trend_df = filtered_trend_df[~filtered_trend_df["Date"].dt.date.isin(ex_date_strs)]
+      ex_date_strs = [
+          pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]
+      ]
+      filtered_trend_df = filtered_trend_df[
+          ~filtered_trend_df["Date"].dt.date.isin(ex_date_strs)
+      ]
 
     st.markdown("### Combined Overview")
     fig = go.Figure()
