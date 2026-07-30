@@ -417,14 +417,13 @@ if "excluded_days" not in st.session_state:
 if "excluded_dates" not in st.session_state:
   st.session_state["excluded_dates"] = []
 
+# Helper Function: Reset strictly back to defaults
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
     st.session_state[f"selected_{cat}"] = [
         d for d in data["defaults"] if d in df.columns
     ]
   st.session_state["custom_kpis_dict"] = {}
-  st.session_state["excluded_days"] = []
-  st.session_state["excluded_dates"] = []
 
 # Apply Custom Calculated Fields directly onto df
 for c_name, c_info in st.session_state["custom_kpis_dict"].items():
@@ -445,7 +444,7 @@ for c_name, c_info in st.session_state["custom_kpis_dict"].items():
 st.title("⚡ Dynamic Performance Analytics")
 
 # =========================================================
-# TOP CONTROLS ROW (EXCLUDE DAYS & DATES FUNCTIONAL POPOVERS)
+# TOP CONTROLS ROW
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -476,7 +475,6 @@ with st.container():
 
   with c3:
     st.markdown("<br>", unsafe_allow_html=True)
-    # Exclude Days Popover
     day_count = len(st.session_state["excluded_days"])
     pop_days_label = f"Exclude Days ({day_count})" if day_count > 0 else "Exclude Days"
     with st.popover(pop_days_label, use_container_width=True):
@@ -489,7 +487,6 @@ with st.container():
 
   with c4:
     st.markdown("<br>", unsafe_allow_html=True)
-    # Exclude Dates Popover
     date_count = len(st.session_state["excluded_dates"])
     pop_dates_label = f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
     with st.popover(pop_dates_label, use_container_width=True):
@@ -511,7 +508,6 @@ comparison_df = df[
     df["Date"].dt.date.isin([d.date() for d in comparison_dates])
 ].sort_values("Date", ascending=False)
 
-# APPLY DYNAMIC DAY & DATE EXCLUSIONS
 if st.session_state["excluded_days"]:
   comparison_df = comparison_df[~comparison_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
 
@@ -525,7 +521,8 @@ if st.session_state["excluded_dates"]:
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
-  hdr1, hdr2, hdr3, hdr4 = st.columns([1.2, 2.5, 1, 1])
+  # Cleaned header with ONLY Search bar and "Reset Defaults" button
+  hdr1, hdr2, hdr3 = st.columns([1.5, 3.5, 1.5])
 
   with hdr1:
     st.markdown(
@@ -541,12 +538,6 @@ with st.container():
     ).strip().lower()
 
   with hdr3:
-    if st.button("✕ Deselect All", key="deselect_all_top", use_container_width=True):
-      for cat in KPI_GROUPS.keys():
-        st.session_state[f"selected_{cat}"] = []
-      st.rerun()
-
-  with hdr4:
     if st.button("🔄 Reset Defaults", key="reset_top", use_container_width=True):
       reset_to_strict_defaults()
       st.rerun()
@@ -799,7 +790,6 @@ with tab2:
         & (df["Date"].dt.date <= date_range[1])
     ]
 
-    # APPLY DAY & DATE EXCLUSIONS TO TRENDS
     if st.session_state["excluded_days"]:
       filtered_trend_df = filtered_trend_df[~filtered_trend_df["Date"].dt.day_name().isin(st.session_state["excluded_days"])]
 
