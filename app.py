@@ -9,93 +9,106 @@ import streamlit as st
 # PAGE CONFIG
 # =========================================================
 st.set_page_config(
-    page_title="BL Search Dashboard",
-    page_icon="📊",
+    page_title="BL Search Analytics",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
 # =========================================================
-# CUSTOM CSS FOR SCREENSHOT-EXACT PILL CHIP UI & FONTS
+# MODERN HIGH-CONTRAST CSS
 # =========================================================
 st.markdown(
     """
 <style>
-/* GLOBAL FONT ENHANCEMENT */
+/* GLOBAL FONTS */
 html, body, [class*="css"] {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 19px !important;
+    font-size: 20px !important;
+    background-color: #f8fafc;
 }
 
 /* CONTAINER CARDS */
 .main-card {
     background-color: #ffffff;
-    padding: 24px 30px;
-    border-radius: 18px;
+    padding: 28px 32px;
+    border-radius: 20px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0px 4px 16px rgba(15, 23, 42, 0.04);
+    box-shadow: 0px 6px 20px rgba(15, 23, 42, 0.04);
     margin-bottom: 24px;
 }
 
 /* HEADINGS */
-h1 { font-size: 42px !important; font-weight: 800 !important; color: #0f172a !important; margin-bottom: 20px !important; }
-h2 { font-size: 32px !important; font-weight: 800 !important; color: #0f172a !important; }
+h1 { font-size: 46px !important; font-weight: 800 !important; color: #0f172a !important; margin-bottom: 16px !important; }
+h2 { font-size: 34px !important; font-weight: 800 !important; color: #0f172a !important; }
 
-/* LABEL FONTS */
+/* LABELS */
 .stDateInput label, .stSelectbox label, .stTextInput label {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-    color: #334155 !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
 }
 
-/* PILL CHIP STYLING FOR BUTTONS */
+/* PILL CHIP BUTTONS */
 div[data-testid="column"] button {
-    border-radius: 999px !important;
-    font-weight: 600 !important;
-    font-size: 17px !important;
-    padding: 8px 22px !important;
-    height: 44px !important;
-    margin-bottom: 10px !important;
+    border-radius: 30px !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    padding: 10px 24px !important;
+    height: 48px !important;
+    margin-bottom: 12px !important;
     transition: all 0.2s ease-in-out !important;
 }
 
-/* ACTIVE SELECTED CHIP BUTTONS */
+/* SELECTED CHIP (VIVID INDIGO) */
 .chip-active button {
-    background-color: #2563eb !important;
+    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
     color: #ffffff !important;
-    border: 1.5px solid #2563eb !important;
-    box-shadow: 0px 4px 10px rgba(37, 99, 235, 0.25) !important;
+    border: 2px solid #4338ca !important;
+    box-shadow: 0px 4px 12px rgba(79, 70, 229, 0.35) !important;
 }
 
-/* INACTIVE CHIP BUTTONS */
+/* UNSELECTED CHIP */
 .chip-inactive button {
     background-color: #ffffff !important;
     color: #334155 !important;
-    border: 1.5px solid #cbd5e1 !important;
+    border: 2px solid #cbd5e1 !important;
 }
 
 .chip-inactive button:hover {
     background-color: #f1f5f9 !important;
-    border-color: #94a3b8 !important;
-    color: #0f172a !important;
+    border-color: #6366f1 !important;
+    color: #4f46e5 !important;
 }
 
 /* EXPANDER TITLE FONTS */
 .stExpander details summary p {
-    font-size: 20px !important;
-    font-weight: 700 !important;
-    color: #334155 !important;
-}
-
-/* DATAFRAME & TABLE STYLING */
-[data-testid="stDataFrame"] {
-    font-size: 19px !important;
-}
-
-/* TAB FONT ENHANCEMENTS */
-button[data-baseweb="tab"] div {
     font-size: 22px !important;
-    font-weight: 700 !important;
+    font-weight: 800 !important;
+    color: #1e293b !important;
+}
+
+/* DATAFRAME / TABLE STYLING */
+[data-testid="stDataFrame"] {
+    font-size: 20px !important;
+}
+
+thead tr th {
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+tbody tr td {
+    font-size: 20px !important;
+    padding: 14px !important;
+}
+
+/* TABS STYLING */
+button[data-baseweb="tab"] div {
+    font-size: 24px !important;
+    font-weight: 800 !important;
 }
 
 </style>
@@ -336,34 +349,44 @@ if (
       / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
   ).fillna(0) * 100
 
-# Initialize Session State
+# Initialize Session State Defaults
 for cat, data in KPI_GROUPS.items():
   key = f"selected_{cat}"
   if key not in st.session_state:
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
 # =========================================================
-# DASHBOARD HEADER
+# TITLE
 # =========================================================
-st.title("📊 BL Search Dashboard")
+st.title("⚡ BL Search Analytics")
 
 # =========================================================
-# TOP ROW CONTROLS (SCREENSHOT TOP CARD)
+# TOP CONTROL PANEL
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-
   c1, c2, c3, c4 = st.columns([1.5, 1.5, 1, 1])
 
   with c1:
     max_date = (
         df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
     )
-    selected_date = st.date_input("Select Date", value=max_date)
+    selected_date = st.date_input("Select Base Date", value=max_date)
 
   with c2:
     weeks_compare = st.selectbox(
-        "Weeks to Compare", ["1 Week", "2 Weeks", "3 Weeks", "4 Weeks", "5 Weeks", "6 Weeks", "7 Weeks", "8 Weeks"], index=3
+        "Weeks to Compare",
+        [
+            "1 Week",
+            "2 Weeks",
+            "3 Weeks",
+            "4 Weeks",
+            "5 Weeks",
+            "6 Weeks",
+            "7 Weeks",
+            "8 Weeks",
+        ],
+        index=3,
     )
     weeks_num = int(weeks_compare.split()[0])
 
@@ -386,35 +409,34 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 # =========================================================
-# KPI SELECTION PANEL WITH REAL PILL CHIPS
+# KPI SELECTION DRAWER & HIGHLIGHTED CHIPS
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
-  # Inline header row matching screenshot
-  hdr_col1, hdr_col2, hdr_col3, hdr_col4 = st.columns([1.2, 2.5, 1, 1])
+  hdr1, hdr2, hdr3, hdr4 = st.columns([1.2, 2.5, 1, 1])
 
-  with hdr_col1:
+  with hdr1:
     st.markdown(
-        "<h3 style='margin:0; padding-top:4px;'>Select KPIs</h3>",
+        "<h3 style='margin:0; padding-top:6px;'>Select KPIs</h3>",
         unsafe_allow_html=True,
     )
 
-  with hdr_col2:
+  with hdr2:
     search_query = st.text_input(
         "Search KPIs",
-        placeholder="🔍 Search KPIs...",
+        placeholder="🔍 Search KPIs across all sections...",
         label_visibility="collapsed",
     ).strip().lower()
 
-  with hdr_col3:
+  with hdr3:
     if st.button("✕ Deselect All", key="deselect_all_top", use_container_width=True):
       for cat in KPI_GROUPS.keys():
         st.session_state[f"selected_{cat}"] = []
       st.rerun()
 
-  with hdr_col4:
-    if st.button("🔄 Reset", key="reset_top", use_container_width=True):
+  with hdr4:
+    if st.button("🔄 Reset Defaults", key="reset_top", use_container_width=True):
       for cat, data in KPI_GROUPS.items():
         st.session_state[f"selected_{cat}"] = [
             d for d in data["defaults"] if d in df.columns
@@ -423,7 +445,7 @@ with st.container():
 
   st.markdown("<br>", unsafe_allow_html=True)
 
-  # Render Collapsible Expander Categories
+  # Render Expandable Accordion Sections with Colored Pill Buttons
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
 
@@ -438,14 +460,14 @@ with st.container():
     sel_count = len(selected_list)
     is_expanded = bool(search_query or cat in ["Main KPIs", "Searches"])
 
-    expander_title = f"{'—' if is_expanded else '+'} {cat.upper()} ({sel_count} selected)"
+    expander_title = (
+        f"{'—' if is_expanded else '+'} {cat.upper()} ({sel_count} selected)"
+    )
 
     with st.expander(expander_title, expanded=is_expanded):
       if not available_metrics:
         st.caption("No matching KPIs found.")
       else:
-        # Render Pill Chips in flexible rows
-        # Divide metrics into columns for balanced pill layout
         cols_per_row = 4
         num_metrics = len(available_metrics)
 
@@ -457,13 +479,18 @@ with st.container():
               is_selected = metric_name in selected_list
 
               with chip_cols[j]:
-                # Wrap button in CSS class for active/inactive styling
-                wrapper_class = "chip-active" if is_selected else "chip-inactive"
-                st.markdown(f"<div class='{wrapper_class}'>", unsafe_allow_html=True)
+                wrapper_class = (
+                    "chip-active" if is_selected else "chip-inactive"
+                )
+                st.markdown(
+                    f"<div class='{wrapper_class}'>", unsafe_allow_html=True
+                )
 
                 btn_label = f"✓ {metric_name}" if is_selected else metric_name
                 if st.button(
-                    btn_label, key=f"pill_{cat}_{metric_name}", use_container_width=True
+                    btn_label,
+                    key=f"pill_{cat}_{metric_name}",
+                    use_container_width=True,
                 ):
                   if is_selected:
                     st.session_state[f"selected_{cat}"].remove(metric_name)
@@ -475,7 +502,7 @@ with st.container():
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Gather all active selected KPIs
+# Active KPI Collection
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
   for metric in st.session_state[f"selected_{cat}"]:
@@ -486,7 +513,7 @@ for cat in KPI_GROUPS.keys():
 # DASHBOARD TABS
 # =========================================================
 tab1, tab2, tab3 = st.tabs(
-    ["📊 KPI Comparison", "📈 Trend Analysis", "📋 Raw Data"]
+    ["📊 KPI Comparison Table", "📈 Trend Visualizations", "📋 Raw Sheet Data"]
 )
 
 # =========================================================
@@ -496,7 +523,7 @@ with tab1:
   st.markdown("## KPI Comparison Table")
 
   if not active_selected_kpis:
-    st.info("💡 Please click on KPI pill chips above to select metrics.")
+    st.info("💡 Please click on KPI chips above to display analytics.")
   else:
     table_df = comparison_df[["Date"] + active_selected_kpis].copy()
     table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
@@ -569,7 +596,7 @@ with tab2:
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================================================
-# TAB 3: RAW DATA & SEARCH
+# TAB 3: RAW DATA
 # =========================================================
 with tab3:
   st.markdown("## Raw Sheet Data")
