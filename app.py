@@ -469,7 +469,7 @@ max_data_date = (
     df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
 )
 
-# FIXED: Helper function uses unique key_prefix to avoid StreamlitDuplicateElementKey
+
 def render_exclusion_popovers(key_prefix: str):
   c3, c4 = st.columns([1, 1])
   with c3:
@@ -559,7 +559,7 @@ with mode_tabs[0]:
   mode_view_type = "pwsd"
 
 
-# MODE 2: DATE RANGE COMPARISON
+# MODE 2: DATE RANGE COMPARISON (CHRONOLOGICAL DAY-OVER-DAY)
 with mode_tabs[1]:
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -611,9 +611,10 @@ with mode_tabs[1]:
         selected_dr if not isinstance(selected_dr, (list, tuple)) else max_data_date,
     )
 
+  # Chronological sorting for Date Range mode (matching screenshot)
   active_mode_df = df[
       (df["Date"].dt.date >= start_d) & (df["Date"].dt.date <= end_d)
-  ].sort_values("Date", ascending=False)
+  ].sort_values("Date", ascending=True)
   mode_view_type = "date_range"
 
 
@@ -891,9 +892,10 @@ with tab1:
         html_code += f"<th>{metric}</th>"
       html_code += "</tr></thead><tbody>"
 
-      base_row = base_df.iloc[0] if len(base_df) > 0 else None
+      prev_row = None
 
-      for idx, row in base_df.iterrows():
+      # Loop over rows and compare each day to the previous row for Date Range mode
+      for idx_num, (idx, row) in enumerate(base_df.iterrows()):
         date_str = (
             row["Date"].strftime("%Y-%m-%d - %a")
             if mode_view_type != "wow"
@@ -905,12 +907,14 @@ with tab1:
           val = row[metric]
           formatted = fmt_val(val, metric)
 
-          if idx == base_df.index[0]:
+          if idx_num == 0:
+            # First row - baseline number without % change badge
             html_code += f"<td>{formatted}</td>"
           else:
-            base_val = base_row[metric] if base_row is not None else 0
+            # Subsequent rows - compare against previous consecutive day (prev_row)
+            ref_val = prev_row[metric] if prev_row is not None else 0
             pct_change = (
-                ((val - base_val) / base_val) * 100 if base_val != 0 else 0
+                ((val - ref_val) / ref_val) * 100 if ref_val != 0 else 0
             )
 
             badge_cls = (
@@ -921,7 +925,7 @@ with tab1:
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
 
             sub_avg_html = ""
-            if idx == base_df.index[-1]:
+            if idx_num == len(base_df) - 1 and mode_view_type != "date_range":
               avg_v = avg_values[metric]
               vs_avg_pct = ((val - avg_v) / avg_v) * 100 if avg_v != 0 else 0
               sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
@@ -931,6 +935,7 @@ with tab1:
 
             html_code += f"<td>{formatted} {badge}{sub_avg_html}</td>"
 
+        prev_row = row
         html_code += "</tr>"
 
       html_code += (
@@ -970,28 +975,28 @@ with tab1:
           f"<th>Avg</th><th>Best Ever</th></tr></thead><tbody>"
       )
 
-      base_row = base_df.iloc[0] if len(base_df) > 0 else None
-
       for metric in active_selected_kpis:
         html_code += (
             f"<tr><td style='font-weight:700; text-align:left;"
             f" padding-left:16px;'>{metric}</td>"
         )
-        base_val = base_row[metric] if base_row is not None else 0
 
-        for idx, row in base_df.iterrows():
+        prev_val = None
+        for idx_num, (idx, row) in enumerate(base_df.iterrows()):
           val = row[metric]
           formatted = fmt_val(val, metric)
 
-          if idx == base_df.index[0]:
+          if idx_num == 0:
             html_code += f"<td>{formatted}</td>"
           else:
             pct_change = (
-                ((val - base_val) / base_val * 100) if base_val != 0 else 0
+                ((val - prev_val) / prev_val * 100) if prev_val != 0 and prev_val is not None else 0
             )
             badge_cls = "badge-pos" if pct_change >= 0 else "badge-neg"
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
             html_code += f"<td>{formatted} {badge}</td>"
+
+          prev_val = val
 
         html_code += f"<td style='font-weight:700;'>{fmt_val(avg_values[metric], metric)}</td>"
         html_code += (
@@ -1004,7 +1009,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS
+# TAB 2: TREND ANALYSIS (CONTINUOUS DAILY PLOTTING FOR DATE RANGE)
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
