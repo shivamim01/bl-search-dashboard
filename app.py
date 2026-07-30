@@ -631,7 +631,7 @@ elif selected_mode == "Date Range Comparison":
   ].sort_values("Date", ascending=True)
   mode_view_type = "date_range"
 
-# 3. MODE: WEEK ON WEEK COMPARISON (CHRONOLOGICAL OLD-TO-NEW SORTING)
+# 3. MODE: WEEK ON WEEK COMPARISON
 elif selected_mode == "Week on Week Comparison":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -654,7 +654,6 @@ elif selected_mode == "Week on Week Comparison":
     st.markdown("</div>", unsafe_allow_html=True)
 
   df_wow = df.copy()
-  # Group by Sunday (Sunday start week)
   df_wow["Week_Start"] = df_wow["Date"].apply(
       lambda d: d - timedelta(days=(d.weekday() + 1) % 7)
   )
@@ -665,7 +664,6 @@ elif selected_mode == "Week on Week Comparison":
   )
   weekly_avg_df = weekly_avg_df.rename(columns={"Week_Start": "Date"})
 
-  # Select latest N completed weeks and sort chronologically (oldest week to newest week)
   active_mode_df = weekly_avg_df.sort_values(
       "Date", ascending=False
   ).head(wow_num).sort_values("Date", ascending=True)
@@ -877,7 +875,6 @@ with tab1:
     base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
 
-    # Best ever calculations (weekly average or daily based on mode)
     best_values = {}
     for col in active_selected_kpis:
       if "zero" in col.lower() or "position" in col.lower():
@@ -923,10 +920,8 @@ with tab1:
           formatted = fmt_val(val, metric)
 
           if idx_num == 0:
-            # Baseline week/day row without badge
             html_code += f"<td>{formatted}</td>"
           else:
-            # Consecutive week/day comparison relative to prev_row
             ref_val = prev_row[metric] if prev_row is not None else 0
             pct_change = (
                 ((val - ref_val) / ref_val) * 100 if ref_val != 0 else 0
@@ -940,7 +935,7 @@ with tab1:
             badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
 
             sub_avg_html = ""
-            if idx_num == len(base_df) - 1:
+            if idx_num == len(base_df) - 1 and mode_view_type != "date_range":
               avg_v = avg_values[metric]
               vs_avg_pct = ((val - avg_v) / avg_v) * 100 if avg_v != 0 else 0
               sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
@@ -953,7 +948,6 @@ with tab1:
         prev_row = row
         html_code += "</tr>"
 
-      # Average Row Label based on mode
       avg_lbl = (
           "Average of Selected Weeks"
           if mode_view_type == "wow"
@@ -964,7 +958,6 @@ with tab1:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
       html_code += "</tr>"
 
-      # Best Ever Row Label based on mode
       best_lbl = (
           "Best Ever (Weekly Avg)"
           if mode_view_type == "wow"
@@ -984,7 +977,6 @@ with tab1:
       html_code += "</tbody></table></div>"
 
     else:
-      # TRANSPOSED VIEW
       html_code = (
           "<div class='custom-table-container'><table class='custom-table'>"
       )
@@ -1035,7 +1027,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS
+# TAB 2: TREND ANALYSIS (SMOOTH SCALE & ZERO-BASELINE MATCHING SCREENSHOTS)
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
@@ -1086,15 +1078,37 @@ with tab2:
         font=dict(size=14),
         margin=dict(l=20, r=20, t=30, b=20),
         xaxis=dict(type="category"),
+        yaxis=dict(rangemode="tozero"),
     )
     st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("<hr style='margin: 24px 0;'>", unsafe_allow_html=True)
-    st.markdown("### Individual KPI Trends")
+    st.markdown("### Individual Breakdown Trends")
+
+    # Distinct Theme Palette matching screenshot cards
+    theme_colors = [
+        {"line": "#0284c7", "fill": "#e0f2fe33"},  # Cyan / Blue
+        {"line": "#7c3aed", "fill": "#f3e8ff33"},  # Purple
+        {"line": "#10b981", "fill": "#d1fae533"},  # Emerald / Green
+        {"line": "#ef4444", "fill": "#ffe4e633"},  # Coral / Red
+        {"line": "#f59e0b", "fill": "#fef3c733"},  # Amber
+    ]
 
     ind_cols = st.columns(2)
     for idx, metric in enumerate(active_selected_kpis):
       if metric in trend_df.columns:
+        palette = theme_colors[idx % len(theme_colors)]
+
+        # Determine smart y-axis constraints (matching screenshots)
+        is_pos_or_rank = "position" in metric.lower() or "rank" in metric.lower()
+        is_percent = (
+            "%" in metric
+            or "txn/100" in metric.lower()
+            or "transactor/" in metric.lower()
+            or "ratio" in metric.lower()
+            or "ni/txn" in metric.lower()
+        )
+
         with ind_cols[idx % 2]:
           st.markdown(f"#### {metric}")
           fig_ind = go.Figure()
@@ -1106,7 +1120,9 @@ with tab2:
                     y=trend_df[metric],
                     mode="lines+markers",
                     name=metric,
-                    line=dict(color="#0284c7", width=2.5),
+                    line=dict(color=palette["line"], width=2.5),
+                    fill="tozeroy" if not is_pos_or_rank else "none",
+                    fillcolor=palette["fill"],
                 )
             )
           else:
@@ -1115,18 +1131,28 @@ with tab2:
                     x=x_dates_formatted,
                     y=trend_df[metric],
                     name=metric,
-                    marker=dict(color="#0284c7"),
+                    marker=dict(color=palette["line"]),
                 )
             )
+
+          # Apply zero-baselinerangemode or custom percentage scale
+          yaxis_dict = dict(gridcolor="#f1f5f9")
+          if not is_pos_or_rank:
+            yaxis_dict["rangemode"] = "tozero"
+            if is_percent:
+              max_v = trend_df[metric].max()
+              # Comfort buffer above max percentage value for visual headroom
+              yaxis_dict["range"] = [0, max(max_v * 1.25, 10)]
 
           fig_ind.update_layout(
               template="plotly_white",
               hovermode="x unified",
-              height=340,
-              font=dict(size=13),
-              margin=dict(l=20, r=20, t=30, b=20),
+              height=320,
+              font=dict(size=12),
+              margin=dict(l=20, r=20, t=20, b=20),
               showlegend=False,
-              xaxis=dict(type="category"),
+              xaxis=dict(type="category", gridcolor="#f1f5f9"),
+              yaxis=yaxis_dict,
           )
           st.plotly_chart(fig_ind, use_container_width=True)
 
