@@ -910,39 +910,6 @@ with tab1:
   elif active_mode_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    # CLEAN DATE SWITCHER BUTTONS
-    if selected_mode == "Previous Week Same Day":
-      nav_c1, nav_c2, nav_c3 = st.columns([1.5, 2, 1.5])
-      cur_dt = pd.to_datetime(st.session_state["pwsd_selected_date"])
-
-      with nav_c1:
-        if st.button("‹ Previous Date", use_container_width=True):
-          st.session_state["pwsd_selected_date"] = (
-              cur_dt - timedelta(days=1)
-          ).date()
-          st.rerun()
-
-      with nav_c2:
-        st.markdown(
-            f"<div style='text-align:center; padding: 2px 0;'><b"
-            " style='font-size:16px;"
-            f" color:#0f172a;'>{cur_dt.strftime('%d %b %Y')}</b><br><span"
-            " style='color:#64748b;"
-            f" font-size:12.5px;'>{cur_dt.strftime('%A')}</span></div>",
-            unsafe_allow_html=True,
-        )
-
-      with nav_c3:
-        if st.button("Next Date ›", use_container_width=True):
-          st.session_state["pwsd_selected_date"] = (
-              cur_dt + timedelta(days=1)
-          ).date()
-          st.rerun()
-
-      st.markdown(
-          "<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True
-      )
-
     base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
 
@@ -967,8 +934,8 @@ with tab1:
       else:
         return f"{val:.2f}".rstrip("0").rstrip(".")
 
-    # TOOLBAR WITH CSV DOWNLOAD BUTTON
-    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.8, 1.2, 1.5])
+    # TOOLBAR WITH CSV DOWNLOAD BUTTON (REMOVED COMMENT BUTTON)
+    tb1, tb2, tb3, tb5 = st.columns([1.5, 1.2, 1.8, 1.5])
 
     with tb1:
       transpose = st.toggle("⇄ Transpose Table", value=False)
@@ -1012,9 +979,6 @@ with tab1:
                 "b": sec_metric,
             }
             st.rerun()
-
-    with tb4:
-      st.button("📝 Comment", use_container_width=True)
 
     with tb5:
       export_df = base_df.copy()
