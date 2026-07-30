@@ -86,15 +86,28 @@ section[data-testid="stSidebar"] label {
     unsafe_allow_html=True,
 )
 
+import io
+import requests
+
 # =========================================================
-# DATA LOAD & CLEANING (FIXED PERCENTAGE PARSING)
+# DATA LOAD & CLEANING
 # =========================================================
-csv_url = "https://docs.google.com/spreadsheets/d/1z1wOGh4fehBVxDL4JXO1p2p3uZG77sd4FD5jhRXI5qE/export?format=csv&gid=0"
+csv_url = "https://docs.google.com/spreadsheets/d/1z1wOGh4fehBVxDL4JXO1p2p3uZG77sd4FD5jhRXI5qE/gviz/tq?tqx=out:csv&gid=0"
 
 
 @st.cache_data(ttl=300)
 def load_data():
-  df = pd.read_csv(csv_url)
+  # Request with standard browser User-Agent to prevent Google 403 HTTP errors
+  headers = {
+      "User-Agent": (
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      )
+  }
+  response = requests.get(csv_url, headers=headers)
+  response.raise_for_status()
+
+  # Load raw text into pandas
+  df = pd.read_csv(io.StringIO(response.text))
 
   # Clean header column names
   df.columns = df.columns.str.strip()
@@ -111,7 +124,6 @@ def load_data():
   # Sanitize numeric and percentage columns safely
   for col in df.columns:
     if col != "Date":
-      # Convert series to string for cleaning
       s = (
           df[col]
           .astype(str)
@@ -119,13 +131,9 @@ def load_data():
           .str.replace(",", "", regex=False)
           .str.replace("$", "", regex=False)
       )
-
-      # Clean percentage signs, invalid formulas, and null representations
       s = s.str.replace("%", "", regex=False).replace(
           ["None", "#REF!", "#N/A", "#VALUE!", "nan", "None", ""], "0"
       )
-
-      # Parse as numeric float
       df[col] = pd.to_numeric(s, errors="coerce").fillna(0)
 
   df = df.sort_values("Date")
