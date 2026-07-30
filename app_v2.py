@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# MODERN HIGH-CONTRAST CSS
+# CUSTOM CSS MATCHING SCREENSHOT UI
 # =========================================================
 st.markdown(
     """
@@ -24,68 +24,60 @@ st.markdown(
 /* GLOBAL FONTS */
 html, body, [class*="css"] {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 20px !important;
+    font-size: 19px !important;
     background-color: #f8fafc;
 }
 
 /* CONTAINER CARDS */
 .main-card {
     background-color: #ffffff;
-    padding: 28px 32px;
-    border-radius: 20px;
+    padding: 24px 30px;
+    border-radius: 18px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0px 6px 20px rgba(15, 23, 42, 0.04);
+    box-shadow: 0px 4px 16px rgba(15, 23, 42, 0.03);
     margin-bottom: 24px;
 }
 
-/* HEADINGS */
-h1 { font-size: 46px !important; font-weight: 800 !important; color: #0f172a !important; margin-bottom: 16px !important; }
-h2 { font-size: 34px !important; font-weight: 800 !important; color: #0f172a !important; }
-
-/* LABELS */
-.stDateInput label, .stSelectbox label, .stTextInput label {
-    font-size: 20px !important;
+/* SECTION HEADINGS */
+.row-header {
+    font-size: 22px !important;
     font-weight: 700 !important;
-    color: #1e293b !important;
+    color: #0284c7 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* PILL CHIP BUTTONS */
 div[data-testid="column"] button {
-    border-radius: 30px !important;
-    font-weight: 700 !important;
-    font-size: 18px !important;
-    padding: 10px 24px !important;
-    height: 48px !important;
-    margin-bottom: 12px !important;
+    border-radius: 999px !important;
+    font-weight: 600 !important;
+    font-size: 17px !important;
+    padding: 6px 20px !important;
+    height: 44px !important;
+    margin-bottom: 8px !important;
     transition: all 0.2s ease-in-out !important;
 }
 
-/* SELECTED CHIP (VIVID INDIGO) */
+/* SELECTED CHIP (CORAL RED STYLE MATCHING SCREENSHOT) */
 .chip-active button {
-    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
-    color: #ffffff !important;
-    border: 2px solid #4338ca !important;
-    box-shadow: 0px 4px 12px rgba(79, 70, 229, 0.35) !important;
+    background-color: #fef2f2 !important;
+    color: #ef4444 !important;
+    border: 1.5px solid #ef4444 !important;
+    box-shadow: 0px 2px 6px rgba(239, 68, 68, 0.15) !important;
 }
 
 /* UNSELECTED CHIP */
 .chip-inactive button {
     background-color: #ffffff !important;
     color: #334155 !important;
-    border: 2px solid #cbd5e1 !important;
+    border: 1.5px solid #e2e8f0 !important;
 }
 
 .chip-inactive button:hover {
-    background-color: #f1f5f9 !important;
-    border-color: #6366f1 !important;
-    color: #4f46e5 !important;
-}
-
-/* EXPANDER TITLE FONTS */
-.stExpander details summary p {
-    font-size: 22px !important;
-    font-weight: 800 !important;
-    color: #1e293b !important;
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
 }
 
 /* DATAFRAME / TABLE STYLING */
@@ -94,21 +86,21 @@ div[data-testid="column"] button {
 }
 
 thead tr th {
-    font-size: 22px !important;
+    font-size: 21px !important;
     font-weight: 800 !important;
     background-color: #f1f5f9 !important;
     color: #0f172a !important;
 }
 
 tbody tr td {
-    font-size: 20px !important;
-    padding: 14px !important;
+    font-size: 19px !important;
+    padding: 12px !important;
 }
 
 /* TABS STYLING */
 button[data-baseweb="tab"] div {
-    font-size: 24px !important;
-    font-weight: 800 !important;
+    font-size: 22px !important;
+    font-weight: 700 !important;
 }
 
 </style>
@@ -166,10 +158,11 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# KPI CATEGORY & DEFAULT DEFINITIONS
+# KPI CATEGORIES WITH ICONS & DEFAULTS
 # =========================================================
 KPI_GROUPS = {
     "Main KPIs": {
+        "icon": "🌐",
         "metrics": [
             "Txn/100 Searches - removing top 20",
             "Mean Purchase Position - Search",
@@ -187,6 +180,7 @@ KPI_GROUPS = {
         ],
     },
     "Searches": {
+        "icon": "📊",
         "metrics": [
             "Total Searches",
             "Daily Active searchers",
@@ -200,6 +194,7 @@ KPI_GROUPS = {
         "defaults": ["Total Searches", "Searches excluding top 20 Sellers"],
     },
     "Platform wise searches": {
+        "icon": "🛒",
         "metrics": [
             "Trade Searches",
             "Seller Searches",
@@ -215,6 +210,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "Transaction Overall & Platform Wise": {
+        "icon": "🎯",
         "metrics": [
             "bl search txn",
             "Unique Transactors",
@@ -233,6 +229,7 @@ KPI_GROUPS = {
         "defaults": ["bl search txn"],
     },
     "Transaction DLP wise": {
+        "icon": "⭐",
         "metrics": [
             "Global Txn",
             "Global Txr",
@@ -248,6 +245,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "Transaction GRID Wise": {
+        "icon": "📈",
         "metrics": [
             "H/L NR Txn",
             "H/L NR Txn ABL",
@@ -263,6 +261,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "Search NI": {
+        "icon": "🔍",
         "metrics": [
             "Search NI",
             "Search NI Users",
@@ -273,6 +272,7 @@ KPI_GROUPS = {
         "defaults": ["Search NI"],
     },
     "Reason wise NI": {
+        "icon": "📋",
         "metrics": [
             "wrong category",
             "specification mismatch",
@@ -286,6 +286,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "DLP Wise NI": {
+        "icon": "📍",
         "metrics": [
             "Global NI",
             "Global NI User",
@@ -301,6 +302,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "Device Wise NI": {
+        "icon": "📱",
         "metrics": [
             "Desktop NI",
             "Deskop NI user",
@@ -314,6 +316,7 @@ KPI_GROUPS = {
         "defaults": [],
     },
     "Grid Wise NI": {
+        "icon": "🔷",
         "metrics": [
             "H/L NR NI",
             "H/L NR NI ABL",
@@ -356,12 +359,12 @@ for cat, data in KPI_GROUPS.items():
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
 # =========================================================
-# TITLE
+# DASHBOARD TITLE
 # =========================================================
 st.title("⚡ BL Search Analytics")
 
 # =========================================================
-# TOP CONTROL PANEL
+# TOP CONTROLS ROW
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -371,7 +374,7 @@ with st.container():
     max_date = (
         df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
     )
-    selected_date = st.date_input("Select Base Date", value=max_date)
+    selected_date = st.date_input("Select Date", value=max_date)
 
   with c2:
     weeks_compare = st.selectbox(
@@ -409,23 +412,24 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 # =========================================================
-# KPI SELECTION DRAWER & HIGHLIGHTED CHIPS
+# KPI SELECTION PANEL (ROW-BASED PILL CHIPS LIKE SCREENSHOT)
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
 
+  # Header Actions
   hdr1, hdr2, hdr3, hdr4 = st.columns([1.2, 2.5, 1, 1])
 
   with hdr1:
     st.markdown(
-        "<h3 style='margin:0; padding-top:6px;'>Select KPIs</h3>",
+        "<h3 style='margin:0; padding-top:4px;'>Select KPIs</h3>",
         unsafe_allow_html=True,
     )
 
   with hdr2:
     search_query = st.text_input(
         "Search KPIs",
-        placeholder="🔍 Search KPIs across all sections...",
+        placeholder="🔍 Search KPIs...",
         label_visibility="collapsed",
     ).strip().lower()
 
@@ -436,16 +440,16 @@ with st.container():
       st.rerun()
 
   with hdr4:
-    if st.button("🔄 Reset Defaults", key="reset_top", use_container_width=True):
+    if st.button("🔄 Reset", key="reset_top", use_container_width=True):
       for cat, data in KPI_GROUPS.items():
         st.session_state[f"selected_{cat}"] = [
             d for d in data["defaults"] if d in df.columns
         ]
       st.rerun()
 
-  st.markdown("<br>", unsafe_allow_html=True)
+  st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
 
-  # Render Expandable Accordion Sections with Colored Pill Buttons
+  # Render Row-by-Row Categories Matching Screenshot Layout
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
 
@@ -457,52 +461,59 @@ with st.container():
         continue
 
     selected_list = st.session_state[f"selected_{cat}"]
-    sel_count = len(selected_list)
-    is_expanded = bool(search_query or cat in ["Main KPIs", "Searches"])
 
-    expander_title = (
-        f"{'—' if is_expanded else '+'} {cat.upper()} ({sel_count} selected)"
-    )
+    # Divide row into Title (left), Pill Chips (middle), More Switch (right)
+    col_label, col_chips, col_more = st.columns([2.2, 7, 1])
 
-    with st.expander(expander_title, expanded=is_expanded):
-      if not available_metrics:
-        st.caption("No matching KPIs found.")
-      else:
-        cols_per_row = 4
-        num_metrics = len(available_metrics)
+    with col_label:
+      st.markdown(
+          f"<div class='row-header'><span>{data['icon']}</span> {cat}</div>",
+          unsafe_allow_html=True,
+      )
 
-        for i in range(0, num_metrics, cols_per_row):
-          chip_cols = st.columns(cols_per_row)
-          for j in range(cols_per_row):
-            if i + j < num_metrics:
-              metric_name = available_metrics[i + j]
-              is_selected = metric_name in selected_list
+    # Determine default visible limit (first 5 chips shown by default)
+    show_more_key = f"more_{cat}"
+    if show_more_key not in st.session_state:
+      st.session_state[show_more_key] = False
 
-              with chip_cols[j]:
-                wrapper_class = (
-                    "chip-active" if is_selected else "chip-inactive"
-                )
-                st.markdown(
-                    f"<div class='{wrapper_class}'>", unsafe_allow_html=True
-                )
+    limit = len(available_metrics) if st.session_state[show_more_key] else 5
+    visible_metrics = available_metrics[:limit]
 
-                btn_label = f"✓ {metric_name}" if is_selected else metric_name
-                if st.button(
-                    btn_label,
-                    key=f"pill_{cat}_{metric_name}",
-                    use_container_width=True,
-                ):
-                  if is_selected:
-                    st.session_state[f"selected_{cat}"].remove(metric_name)
-                  else:
-                    st.session_state[f"selected_{cat}"].append(metric_name)
-                  st.rerun()
+    with col_chips:
+      # Horizontal layout for chips
+      cols_per_row = 5
+      for idx in range(0, len(visible_metrics), cols_per_row):
+        chip_cols = st.columns(cols_per_row)
+        batch = visible_metrics[idx : idx + cols_per_row]
+        for c_idx, metric_name in enumerate(batch):
+          is_selected = metric_name in selected_list
+          with chip_cols[c_idx]:
+            wrapper_class = "chip-active" if is_selected else "chip-inactive"
+            st.markdown(f"<div class='{wrapper_class}'>", unsafe_allow_html=True)
 
-                st.markdown("</div>", unsafe_allow_html=True)
+            if st.button(
+                metric_name, key=f"pill_{cat}_{metric_name}", use_container_width=True
+            ):
+              if is_selected:
+                st.session_state[f"selected_{cat}"].remove(metric_name)
+              else:
+                st.session_state[f"selected_{cat}"].append(metric_name)
+              st.rerun()
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_more:
+      if len(available_metrics) > 5:
+        is_toggled = st.toggle("More", value=st.session_state[show_more_key], key=f"toggle_{cat}")
+        if is_toggled != st.session_state[show_more_key]:
+          st.session_state[show_more_key] = is_toggled
+          st.rerun()
+
+    st.markdown("<div style='margin-bottom: 18px;'></div>", unsafe_allow_html=True)
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Active KPI Collection
+# Active Selected KPIs Collection
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
   for metric in st.session_state[f"selected_{cat}"]:
