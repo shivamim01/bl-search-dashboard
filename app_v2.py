@@ -16,91 +16,76 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS FOR LARGER FONTS & CHIP UI
+# CUSTOM CSS FOR BIGGER FONTS, BETTER CHIPS & TABLES
 # =========================================================
 st.markdown(
     """
 <style>
-/* GLOBAL FONT SIZE ENHANCEMENT */
+/* GLOBAL FONT ENHANCEMENTS */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
     font-size: 20px !important;
 }
 
-/* MAIN TITLES */
-h1 { font-size: 48px !important; font-weight: 800 !important; }
-h2 { font-size: 34px !important; font-weight: 700 !important; }
-h3 { font-size: 26px !important; font-weight: 700 !important; }
+/* HEADINGS */
+h1 { font-size: 52px !important; font-weight: 800 !important; color: #0f172a !important; }
+h2 { font-size: 38px !important; font-weight: 800 !important; color: #0f172a !important; }
+h3 { font-size: 28px !important; font-weight: 700 !important; color: #1e293b !important; }
 
-/* TOP CONTROLS CARD */
-.top-card {
+/* TOP CONTROLS & FILTER CARDS */
+.top-card, .filter-card {
     background-color: #ffffff;
-    padding: 22px 28px;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.05);
-    margin-bottom: 24px;
-}
-
-/* FILTER CARD */
-.filter-card {
-    background-color: #ffffff;
-    padding: 24px;
-    border-radius: 18px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.05);
+    padding: 28px;
+    border-radius: 20px;
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0px 6px 18px rgba(15, 23, 42, 0.05);
     margin-bottom: 28px;
 }
 
 /* INPUT LABELS & TEXT */
-.stDateInput label, .stSelectbox label, .stMultiSelect label, label {
-    font-size: 20px !important;
+.stDateInput label, .stSelectbox label, .stTextInput label, label {
+    font-size: 22px !important;
     font-weight: 700 !important;
-    color: #1e293b !important;
+    color: #0f172a !important;
 }
 
-/* STYLING CHECKBOXES AS VISUAL CHIPS */
+/* ENHANCED VISUAL CHIP CHECKBOXES */
 div[data-testid="stCheckbox"] {
-    background-color: #f1f5f9;
-    border: 1.5px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 10px 16px;
-    margin-bottom: 10px;
+    background-color: #f8fafc;
+    border: 2px solid #cbd5e1;
+    border-radius: 14px;
+    padding: 12px 18px;
+    margin-bottom: 12px;
     transition: all 0.2s ease-in-out;
 }
 
 div[data-testid="stCheckbox"]:hover {
-    background-color: #e2e8f0;
-    border-color: #94a3b8;
+    background-color: #f1f5f9;
+    border-color: #3b82f6;
 }
 
 div[data-testid="stCheckbox"] label span {
-    font-size: 18px !important;
+    font-size: 20px !important;
     font-weight: 600 !important;
     color: #0f172a !important;
 }
 
 /* EXPANDER HEADINGS */
 .stExpander details summary p {
-    font-size: 22px !important;
+    font-size: 24px !important;
     font-weight: 700 !important;
     color: #0f172a !important;
 }
 
-/* TABS FONT SIZE */
-button[data-baseweb="tab"] div {
-    font-size: 22px !important;
-    font-weight: 700 !important;
-}
-
-/* DATAFRAME & TABLE FONTS */
-thead tr th {
+/* BIGGER TABLE FONTS & HORIZONTAL SCROLL ENHANCEMENTS */
+[data-testid="stDataFrame"] {
     font-size: 20px !important;
-    font-weight: 700 !important;
 }
 
-tbody tr td {
-    font-size: 19px !important;
+/* TAB HEADINGS */
+button[data-baseweb="tab"] div {
+    font-size: 24px !important;
+    font-weight: 700 !important;
 }
 
 </style>
@@ -158,7 +143,7 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# KPI CATEGORY & DEFAULT DEFINITIONS
+# KPI CATEGORIES & DEFAULT DEFINITIONS
 # =========================================================
 KPI_GROUPS = {
     "Main KPIs": {
@@ -322,7 +307,7 @@ KPI_GROUPS = {
     },
 }
 
-# Derive extra dynamic KPIs if necessary columns exist
+# Derived KPIs
 if (
     "BL Search API Txn" in df.columns
     and "Searches excluding top 20 Sellers" in df.columns
@@ -341,20 +326,17 @@ if (
       / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
   ).fillna(0) * 100
 
-# Initialize Session State Defaults
+# Initialize Session State
 for cat, data in KPI_GROUPS.items():
   key = f"selected_{cat}"
   if key not in st.session_state:
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
 # =========================================================
-# TITLE
+# TITLE & TOP CONTROLS
 # =========================================================
 st.title("📊 BL Search Dashboard")
 
-# =========================================================
-# OBSERVATION 3: DATE & COMPARISON CONTROLS AT TOP
-# =========================================================
 with st.container():
   st.markdown("<div class='top-card'>", unsafe_allow_html=True)
   col1, col2 = st.columns(2)
@@ -378,7 +360,7 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 # =========================================================
-# OBSERVATION 2: CHIPS UI SELECTION PANEL
+# CHIP SELECTION PANEL & KPI SEARCH
 # =========================================================
 with st.container():
   st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
@@ -399,22 +381,33 @@ with st.container():
         ]
       st.rerun()
 
-  # Render visual chip selector grids for each category
+  # SEARCH OPTION FOR KPIS
+  search_query = st.text_input(
+      "🔍 Search KPIs...", placeholder="Type to filter KPIs (e.g., 'NI', 'Txn', 'Searches')..."
+  ).strip().lower()
+
+  st.markdown("<br>", unsafe_allow_html=True)
+
+  # Render Category Expander Grids
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
-    selected_count = len(st.session_state[f"selected_{cat}"])
 
-    with st.expander(
-        f"🔹 **{cat.upper()}** ({selected_count} selected)",
-        expanded=(cat in ["Main KPIs", "Searches"]),
-    ):
+    # Filter metrics by search query if typed
+    if search_query:
+      available_metrics = [
+          m for m in available_metrics if search_query in m.lower()
+      ]
       if not available_metrics:
-        st.caption("No matching columns found in sheet.")
+        continue  # Hide empty category during search
+
+    with st.expander(f"🔹 **{cat.upper()}**", expanded=bool(search_query or cat == "Main KPIs")):
+      if not available_metrics:
+        st.caption("No matching KPIs found.")
       else:
-        # 3-column chip grid
         cols = st.columns(3)
         for idx, metric in enumerate(available_metrics):
           with cols[idx % 3]:
+            # Read state cleanly
             is_checked = metric in st.session_state[f"selected_{cat}"]
             checked = st.checkbox(
                 metric, value=is_checked, key=f"chip_{cat}_{metric}"
@@ -422,14 +415,16 @@ with st.container():
 
             if checked and metric not in st.session_state[f"selected_{cat}"]:
               st.session_state[f"selected_{cat}"].append(metric)
+              st.rerun()
             elif (
                 not checked and metric in st.session_state[f"selected_{cat}"]
             ):
               st.session_state[f"selected_{cat}"].remove(metric)
+              st.rerun()
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Collect all selected KPIs across categories
+# Collect all currently selected KPIs
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
   for metric in st.session_state[f"selected_{cat}"]:
@@ -450,7 +445,7 @@ with tab1:
   st.markdown("## KPI Comparison Table")
 
   if not active_selected_kpis:
-    st.info("💡 Please click on chip options above to select KPIs.")
+    st.info("💡 Please click on KPI chips above to display data.")
   else:
     table_df = comparison_df[["Date"] + active_selected_kpis].copy()
     table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
@@ -462,7 +457,8 @@ with tab1:
         mime="text/csv",
     )
 
-    st.dataframe(table_df, use_container_width=True, height=500)
+    # DataFrame with large fonts and horizontal scroll enabled
+    st.dataframe(table_df, use_container_width=True, height=520)
 
 # =========================================================
 # TAB 2: TREND ANALYSIS
@@ -517,7 +513,7 @@ with tab2:
         template="plotly_white",
         hovermode="x unified",
         height=550,
-        font=dict(size=16),
+        font=dict(size=18),
         margin=dict(l=20, r=20, t=30, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
