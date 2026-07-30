@@ -12,52 +12,95 @@ st.set_page_config(
     page_title="BL Search Dashboard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",  # Collapsed since filters are now on top
+    initial_sidebar_state="collapsed",
 )
 
 # =========================================================
-# CUSTOM CSS FOR CHIP FILTER UI
+# CUSTOM CSS FOR LARGER FONTS & CHIP UI
 # =========================================================
 st.markdown(
     """
 <style>
+/* GLOBAL FONT SIZE ENHANCEMENT */
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
+    font-size: 20px !important;
 }
 
-/* SECTION CARD FOR FILTERS */
-.filter-card {
+/* MAIN TITLES */
+h1 { font-size: 48px !important; font-weight: 800 !important; }
+h2 { font-size: 34px !important; font-weight: 700 !important; }
+h3 { font-size: 26px !important; font-weight: 700 !important; }
+
+/* TOP CONTROLS CARD */
+.top-card {
     background-color: #ffffff;
-    padding: 20px 24px;
-    border-radius: 16px;
-    border: 1px solid #eef2f7;
-    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.04);
+    padding: 22px 28px;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.05);
     margin-bottom: 24px;
 }
 
-.section-title {
-    font-size: 26px;
-    font-weight: 700;
-    margin-bottom: 16px;
-    color: #111827;
+/* FILTER CARD */
+.filter-card {
+    background-color: #ffffff;
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.05);
+    margin-bottom: 28px;
 }
 
-/* EXPANDER HEADER STYLING */
-.stExpander {
-    border: 1px solid #eef2f7 !important;
-    border-radius: 12px !important;
-    margin-bottom: 8px !important;
-    background: #f8fafc;
+/* INPUT LABELS & TEXT */
+.stDateInput label, .stSelectbox label, .stMultiSelect label, label {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    color: #1e293b !important;
 }
 
-/* MULTISELECT PILL CHIPS */
-div[data-baseweb="select"] span[data-baseweb="tag"] {
-    background-color: #eff6ff !important;
-    border: 1px solid #bfdbfe !important;
-    border-radius: 20px !important;
-    color: #1d4ed8 !important;
+/* STYLING CHECKBOXES AS VISUAL CHIPS */
+div[data-testid="stCheckbox"] {
+    background-color: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease-in-out;
+}
+
+div[data-testid="stCheckbox"]:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+div[data-testid="stCheckbox"] label span {
+    font-size: 18px !important;
     font-weight: 600 !important;
-    padding: 4px 10px !important;
+    color: #0f172a !important;
+}
+
+/* EXPANDER HEADINGS */
+.stExpander details summary p {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+}
+
+/* TABS FONT SIZE */
+button[data-baseweb="tab"] div {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+}
+
+/* DATAFRAME & TABLE FONTS */
+thead tr th {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+}
+
+tbody tr td {
+    font-size: 19px !important;
 }
 
 </style>
@@ -302,23 +345,49 @@ if (
 for cat, data in KPI_GROUPS.items():
   key = f"selected_{cat}"
   if key not in st.session_state:
-    # Filter defaults to only those present in sheet columns
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
 # =========================================================
-# HEADER & TOP-LEVEL SELECTION PANEL
+# TITLE
 # =========================================================
 st.title("📊 BL Search Dashboard")
 
-# Top Filter Container
+# =========================================================
+# OBSERVATION 3: DATE & COMPARISON CONTROLS AT TOP
+# =========================================================
+with st.container():
+  st.markdown("<div class='top-card'>", unsafe_allow_html=True)
+  col1, col2 = st.columns(2)
+  with col1:
+    max_date = (
+        df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
+    )
+    selected_date = st.date_input("🗓️ Base Comparison Date", value=max_date)
+  with col2:
+    weeks_compare = st.selectbox(
+        "📅 Weeks to Compare", list(range(1, 9)), index=3
+    )
+  st.markdown("</div>", unsafe_allow_html=True)
+
+selected_date = pd.to_datetime(selected_date)
+comparison_dates = [
+    selected_date - timedelta(days=7 * i) for i in range(weeks_compare)
+]
+comparison_df = df[
+    df["Date"].dt.date.isin([d.date() for d in comparison_dates])
+].sort_values("Date", ascending=False)
+
+# =========================================================
+# OBSERVATION 2: CHIPS UI SELECTION PANEL
+# =========================================================
 with st.container():
   st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
 
   col_hdr1, col_hdr2, col_hdr3 = st.columns([2, 1, 1])
   with col_hdr1:
-    st.markdown("### **Select KPIs**")
+    st.markdown("### **Select KPIs (Click Chips to Toggle)**")
   with col_hdr2:
-    if st.button("❌ Deselect All KPIs", use_container_width=True):
+    if st.button("❌ Deselect All", use_container_width=True):
       for cat in KPI_GROUPS.keys():
         st.session_state[f"selected_{cat}"] = []
       st.rerun()
@@ -330,51 +399,42 @@ with st.container():
         ]
       st.rerun()
 
-  # Render expandable chip selector sections
+  # Render visual chip selector grids for each category
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
+    selected_count = len(st.session_state[f"selected_{cat}"])
 
-    # Show category expander
     with st.expander(
-        f"➕ **{cat.upper()}** ({len(st.session_state[f'selected_{cat}'])} selected)",
-        expanded=(cat == "Main KPIs"),
+        f"🔹 **{cat.upper()}** ({selected_count} selected)",
+        expanded=(cat in ["Main KPIs", "Searches"]),
     ):
-      selected = st.multiselect(
-          label=f"Choose {cat} metrics",
-          options=available_metrics,
-          default=st.session_state[f"selected_{cat}"],
-          key=f"select_box_{cat}",
-          label_visibility="collapsed",
-      )
-      st.session_state[f"selected_{cat}"] = selected
+      if not available_metrics:
+        st.caption("No matching columns found in sheet.")
+      else:
+        # 3-column chip grid
+        cols = st.columns(3)
+        for idx, metric in enumerate(available_metrics):
+          with cols[idx % 3]:
+            is_checked = metric in st.session_state[f"selected_{cat}"]
+            checked = st.checkbox(
+                metric, value=is_checked, key=f"chip_{cat}_{metric}"
+            )
+
+            if checked and metric not in st.session_state[f"selected_{cat}"]:
+              st.session_state[f"selected_{cat}"].append(metric)
+            elif (
+                not checked and metric in st.session_state[f"selected_{cat}"]
+            ):
+              st.session_state[f"selected_{cat}"].remove(metric)
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Combine all currently selected KPIs
+# Collect all selected KPIs across categories
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
-  active_selected_kpis.extend(st.session_state[f"selected_{cat}"])
-
-# =========================================================
-# DATE COMPARISON CONTROLS
-# =========================================================
-with st.container():
-  top1, top2 = st.columns(2)
-  with top1:
-    max_date = (
-        df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
-    )
-    selected_date = st.date_input("Select Base Comparison Date", value=max_date)
-  with top2:
-    weeks_compare = st.selectbox("Weeks to Compare", list(range(1, 9)), index=3)
-
-selected_date = pd.to_datetime(selected_date)
-comparison_dates = [
-    selected_date - timedelta(days=7 * i) for i in range(weeks_compare)
-]
-comparison_df = df[
-    df["Date"].dt.date.isin([d.date() for d in comparison_dates])
-].sort_values("Date", ascending=False)
+  for metric in st.session_state[f"selected_{cat}"]:
+    if metric not in active_selected_kpis:
+      active_selected_kpis.append(metric)
 
 # =========================================================
 # TABS
@@ -387,40 +447,31 @@ tab1, tab2, tab3 = st.tabs(
 # TAB 1: KPI COMPARISON TABLE
 # =========================================================
 with tab1:
-  st.markdown(
-      "<div class='section-title'>KPI Comparison Table</div>",
-      unsafe_allow_html=True,
-  )
+  st.markdown("## KPI Comparison Table")
 
   if not active_selected_kpis:
-    st.info("Please select at least one KPI from the options above.")
+    st.info("💡 Please click on chip options above to select KPIs.")
   else:
     table_df = comparison_df[["Date"] + active_selected_kpis].copy()
     table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
 
-    col_btn1, col_btn2 = st.columns([1, 4])
-    with col_btn1:
-      st.download_button(
-          "⬇ Export CSV",
-          data=table_df.to_csv(index=False),
-          file_name="kpi_comparison.csv",
-          mime="text/csv",
-          use_container_width=True,
-      )
+    st.download_button(
+        "⬇ Export Table CSV",
+        data=table_df.to_csv(index=False),
+        file_name="kpi_comparison.csv",
+        mime="text/csv",
+    )
 
-    st.dataframe(table_df, use_container_width=True, height=450)
+    st.dataframe(table_df, use_container_width=True, height=500)
 
 # =========================================================
 # TAB 2: TREND ANALYSIS
 # =========================================================
 with tab2:
-  st.markdown(
-      "<div class='section-title'>Trend Visualizations</div>",
-      unsafe_allow_html=True,
-  )
+  st.markdown("## Trend Visualizations")
 
   if not active_selected_kpis:
-    st.info("Select metrics from the options above to display charts.")
+    st.info("💡 Select KPI chips above to display visual trends.")
   else:
     col_t1, col_t2 = st.columns([2, 1])
     with col_t1:
@@ -465,7 +516,8 @@ with tab2:
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=500,
+        height=550,
+        font=dict(size=16),
         margin=dict(l=20, r=20, t=30, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -474,9 +526,7 @@ with tab2:
 # TAB 3: RAW DATA & SEARCH
 # =========================================================
 with tab3:
-  st.markdown(
-      "<div class='section-title'>Raw Sheet Data</div>", unsafe_allow_html=True
-  )
+  st.markdown("## Raw Sheet Data")
   search_text = st.text_input("Search raw dataset by keyword...")
 
   raw_df = df.copy()
