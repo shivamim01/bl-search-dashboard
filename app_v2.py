@@ -38,18 +38,6 @@ html, body, [class*="css"] {
     margin-bottom: 16px;
 }
 
-/* DATE NAV CARD */
-.date-nav-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 12px;
-    padding: 8px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-}
-
 /* SECTION HEADINGS */
 .row-header {
     font-size: 16px !important;
@@ -75,7 +63,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     font-weight: 700 !important;
 }
 
-/* DYNAMIC TABLE HTML STYLING WITH STICKY FIRST COLUMN */
+/* DYNAMIC TABLE HTML STYLING WITH STICKY 1ST COLUMN */
 .custom-table-container {
     width: 100%;
     overflow-x: auto;
@@ -511,7 +499,7 @@ for cat, data in KPI_GROUPS.items():
 st.title("⚡ BL Search RCA DashBoard")
 
 
-# Helper Function: Render Popovers with Checkboxes matching SS2
+# Helper Function: Render Popovers with Checkboxes
 def render_exclusion_popovers(
     key_prefix: str, available_dates_df: pd.DataFrame
 ):
@@ -596,7 +584,7 @@ def render_exclusion_popovers(
 
 
 # =========================================================
-# TOP LEVEL MODE SELECTION SWITCH
+# TOP LEVEL MODE SELECTION SWITCH (REMOVED CUSTOM COMPARE)
 # =========================================================
 selected_mode = st.segmented_control(
     "Comparison Mode",
@@ -604,7 +592,6 @@ selected_mode = st.segmented_control(
         "Previous Week Same Day",
         "Date Range Comparison",
         "Week on Week Comparison",
-        "Custom Compare",
     ],
     default="Previous Week Same Day",
     key="top_comparison_mode_switcher",
@@ -763,11 +750,6 @@ elif selected_mode == "Week on Week Comparison":
   )
   mode_view_type = "wow"
 
-# 4. MODE: CUSTOM COMPARE
-else:
-  st.info("💡 Select custom dates or dimensions for tailored comparisons.")
-  mode_view_type = "custom"
-
 
 # APPLY GLOBAL DAY AND DATE EXCLUSIONS
 if st.session_state["excluded_days"] and not active_mode_df.empty:
@@ -918,16 +900,16 @@ with tab1:
   elif active_mode_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    # 1. SCREENSHOT 1: EASY DATE SWITCHER FOR PREVIOUS WEEK SAME DAY TAB
+    # 1. FIXED WORKING DATE SWITCHER BAR
     if selected_mode == "Previous Week Same Day":
       nav_c1, nav_c2, nav_c3 = st.columns([1.5, 2, 1.5])
       cur_dt = pd.to_datetime(st.session_state["pwsd_selected_date"])
 
       with nav_c1:
         if st.button("‹ Previous Date", use_container_width=True):
-          st.session_state["pwsd_selected_date"] = (
-              cur_dt - timedelta(days=1)
-          ).date()
+          prev_d = (cur_dt - timedelta(days=1)).date()
+          st.session_state["pwsd_selected_date"] = prev_d
+          st.session_state["pwsd_date"] = prev_d
           st.rerun()
 
       with nav_c2:
@@ -942,16 +924,15 @@ with tab1:
 
       with nav_c3:
         if st.button("Next Date ›", use_container_width=True):
-          st.session_state["pwsd_selected_date"] = (
-              cur_dt + timedelta(days=1)
-          ).date()
+          nxt_d = (cur_dt + timedelta(days=1)).date()
+          st.session_state["pwsd_selected_date"] = nxt_d
+          st.session_state["pwsd_date"] = nxt_d
           st.rerun()
 
       st.markdown(
           "<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True
       )
 
-    # Prepare DataFrame for Export & Formatting
     base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
 
@@ -1026,7 +1007,6 @@ with tab1:
       st.button("📝 Comment", use_container_width=True)
 
     with tb5:
-      # Download Button for the active Table
       export_df = base_df.copy()
       export_df["Date"] = export_df["Date"].dt.strftime("%Y-%m-%d")
       st.download_button(
@@ -1037,7 +1017,7 @@ with tab1:
           use_container_width=True,
       )
 
-    # 3. HTML TABLE WITH STICKY 1ST COLUMN (HORIZONTAL SCROLL)
+    # TABLE WITH STICKY 1ST COLUMN
     if not transpose:
       html_code = (
           "<div class='custom-table-container'><table class='custom-table'>"
