@@ -1027,7 +1027,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS (SMOOTH SCALE & ZERO-BASELINE MATCHING SCREENSHOTS)
+# TAB 2: TREND ANALYSIS (FIXED PLOTLY RGBA COLOR VALIDATION)
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
@@ -1085,13 +1085,13 @@ with tab2:
     st.markdown("<hr style='margin: 24px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual Breakdown Trends")
 
-    # Distinct Theme Palette matching screenshot cards
+    # FIXED: Valid rgba(...) strings for Plotly compatibility
     theme_colors = [
-        {"line": "#0284c7", "fill": "#e0f2fe33"},  # Cyan / Blue
-        {"line": "#7c3aed", "fill": "#f3e8ff33"},  # Purple
-        {"line": "#10b981", "fill": "#d1fae533"},  # Emerald / Green
-        {"line": "#ef4444", "fill": "#ffe4e633"},  # Coral / Red
-        {"line": "#f59e0b", "fill": "#fef3c733"},  # Amber
+        {"line": "#0284c7", "fill": "rgba(2, 132, 197, 0.12)"},
+        {"line": "#7c3aed", "fill": "rgba(124, 58, 237, 0.12)"},
+        {"line": "#10b981", "fill": "rgba(16, 185, 129, 0.12)"},
+        {"line": "#ef4444", "fill": "rgba(239, 68, 68, 0.12)"},
+        {"line": "#f59e0b", "fill": "rgba(245, 158, 11, 0.12)"},
     ]
 
     ind_cols = st.columns(2)
@@ -1099,7 +1099,6 @@ with tab2:
       if metric in trend_df.columns:
         palette = theme_colors[idx % len(theme_colors)]
 
-        # Determine smart y-axis constraints (matching screenshots)
         is_pos_or_rank = "position" in metric.lower() or "rank" in metric.lower()
         is_percent = (
             "%" in metric
@@ -1135,13 +1134,11 @@ with tab2:
                 )
             )
 
-          # Apply zero-baselinerangemode or custom percentage scale
           yaxis_dict = dict(gridcolor="#f1f5f9")
           if not is_pos_or_rank:
             yaxis_dict["rangemode"] = "tozero"
             if is_percent:
               max_v = trend_df[metric].max()
-              # Comfort buffer above max percentage value for visual headroom
               yaxis_dict["range"] = [0, max(max_v * 1.25, 10)]
 
           fig_ind.update_layout(
