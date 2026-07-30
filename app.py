@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS MATCHING SCREENSHOT UI
+# CUSTOM CSS FOR LEGIBILITY & HIGH-CONTRAST CHIPS
 # =========================================================
 st.markdown(
     """
@@ -48,39 +48,27 @@ html, body, [class*="css"] {
     gap: 8px;
 }
 
-/* PILL CHIP BUTTONS */
-div[data-testid="column"] button {
-    border-radius: 999px !important;
-    font-weight: 600 !important;
-    font-size: 17px !important;
-    padding: 6px 20px !important;
-    height: 44px !important;
-    margin-bottom: 8px !important;
-    transition: all 0.2s ease-in-out !important;
+/* CUSTOM STYLING FOR NATIVE STREAMLIT PILLS */
+div[data-testid="stPills"] {
+    gap: 8px !important;
 }
 
-/* SELECTED CHIP (CORAL RED STYLE MATCHING SCREENSHOT) */
-.chip-active button {
+div[data-testid="stPills"] button {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    border-radius: 999px !important;
+    padding: 6px 18px !important;
+}
+
+/* ACTIVE HIGHLIGHT COLOR FOR SELECTED PILLS */
+div[data-testid="stPills"] button[aria-selected="true"] {
     background-color: #fef2f2 !important;
     color: #ef4444 !important;
     border: 1.5px solid #ef4444 !important;
-    box-shadow: 0px 2px 6px rgba(239, 68, 68, 0.15) !important;
+    font-weight: 700 !important;
 }
 
-/* UNSELECTED CHIP */
-.chip-inactive button {
-    background-color: #ffffff !important;
-    color: #334155 !important;
-    border: 1.5px solid #e2e8f0 !important;
-}
-
-.chip-inactive button:hover {
-    background-color: #f8fafc !important;
-    border-color: #cbd5e1 !important;
-    color: #0f172a !important;
-}
-
-/* DATAFRAME / TABLE STYLING */
+/* DATAFRAME & TABLE STYLING */
 [data-testid="stDataFrame"] {
     font-size: 20px !important;
 }
@@ -412,7 +400,7 @@ comparison_df = df[
 ].sort_values("Date", ascending=False)
 
 # =========================================================
-# KPI SELECTION PANEL (ROW-BASED PILL CHIPS LIKE SCREENSHOT)
+# KPI SELECTION PANEL (USING NATIVE ST.PILLS FOR RELIABLE HIGHLIGHTS)
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -449,7 +437,7 @@ with st.container():
 
   st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
 
-  # Render Row-by-Row Categories Matching Screenshot Layout
+  # Render Rows using st.pills
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
 
@@ -460,9 +448,13 @@ with st.container():
       if not available_metrics:
         continue
 
-    selected_list = st.session_state[f"selected_{cat}"]
+    show_more_key = f"more_{cat}"
+    if show_more_key not in st.session_state:
+      st.session_state[show_more_key] = False
 
-    # Divide row into Title (left), Pill Chips (middle), More Switch (right)
+    limit = len(available_metrics) if st.session_state[show_more_key] else 5
+    visible_metrics = available_metrics[:limit]
+
     col_label, col_chips, col_more = st.columns([2.2, 7, 1])
 
     with col_label:
@@ -471,36 +463,23 @@ with st.container():
           unsafe_allow_html=True,
       )
 
-    # Determine default visible limit (first 5 chips shown by default)
-    show_more_key = f"more_{cat}"
-    if show_more_key not in st.session_state:
-      st.session_state[show_more_key] = False
-
-    limit = len(available_metrics) if st.session_state[show_more_key] else 5
-    visible_metrics = available_metrics[:limit]
-
     with col_chips:
-      # Horizontal layout for chips
-      cols_per_row = 5
-      for idx in range(0, len(visible_metrics), cols_per_row):
-        chip_cols = st.columns(cols_per_row)
-        batch = visible_metrics[idx : idx + cols_per_row]
-        for c_idx, metric_name in enumerate(batch):
-          is_selected = metric_name in selected_list
-          with chip_cols[c_idx]:
-            wrapper_class = "chip-active" if is_selected else "chip-inactive"
-            st.markdown(f"<div class='{wrapper_class}'>", unsafe_allow_html=True)
-
-            if st.button(
-                metric_name, key=f"pill_{cat}_{metric_name}", use_container_width=True
-            ):
-              if is_selected:
-                st.session_state[f"selected_{cat}"].remove(metric_name)
-              else:
-                st.session_state[f"selected_{cat}"].append(metric_name)
-              st.rerun()
-
-            st.markdown("</div>", unsafe_allow_html=True)
+      # Native Streamlit Pills for reliable selection and CSS highlighting
+      selected_pills = st.pills(
+          label=cat,
+          options=visible_metrics,
+          default=[m for m in st.session_state[f"selected_{cat}"] if m in visible_metrics],
+          selection_mode="multi",
+          key=f"pills_{cat}",
+          label_visibility="collapsed",
+      )
+      
+      # Sync selected pills with session state
+      # Preserve selected metrics from the "More" overflow if collapsed
+      overflow_selected = [
+          m for m in st.session_state[f"selected_{cat}"] if m in available_metrics and m not in visible_metrics
+      ]
+      st.session_state[f"selected_{cat}"] = selected_pills + overflow_selected
 
     with col_more:
       if len(available_metrics) > 5:
@@ -509,11 +488,11 @@ with st.container():
           st.session_state[show_more_key] = is_toggled
           st.rerun()
 
-    st.markdown("<div style='margin-bottom: 18px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True)
 
   st.markdown("</div>", unsafe_allow_html=True)
 
-# Active Selected KPIs Collection
+# Collect all currently active selected KPIs across categories
 active_selected_kpis = []
 for cat in KPI_GROUPS.keys():
   for metric in st.session_state[f"selected_{cat}"]:
@@ -534,7 +513,7 @@ with tab1:
   st.markdown("## KPI Comparison Table")
 
   if not active_selected_kpis:
-    st.info("💡 Please click on KPI chips above to display analytics.")
+    st.info("💡 Please click on KPI chips above to select analytics.")
   else:
     table_df = comparison_df[["Date"] + active_selected_kpis].copy()
     table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
