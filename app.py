@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS FOR MATCHING TABLE & CHIP UI
+# CUSTOM CSS FOR MATCHING TABLE, FIXED COLUMN & CHIP UI
 # =========================================================
 st.markdown(
     """
@@ -36,6 +36,18 @@ html, body, [class*="css"] {
     border: 1px solid #e2e8f0;
     box-shadow: 0px 3px 12px rgba(15, 23, 42, 0.03);
     margin-bottom: 16px;
+}
+
+/* DATE NAV CARD */
+.date-nav-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 12px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
 
 /* SECTION HEADINGS */
@@ -63,7 +75,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     font-weight: 700 !important;
 }
 
-/* DYNAMIC TABLE HTML STYLING */
+/* DYNAMIC TABLE HTML STYLING WITH STICKY FIRST COLUMN */
 .custom-table-container {
     width: 100%;
     overflow-x: auto;
@@ -72,36 +84,62 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     border: 1px solid #e2e8f0;
     box-shadow: 0 3px 10px rgba(0,0,0,0.03);
     margin-top: 12px;
+    position: relative;
 }
 
 .custom-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     text-align: center;
     font-size: 14px;
+    white-space: nowrap;
 }
 
 .custom-table th {
     background-color: #f8fafc;
     color: #475569;
     font-weight: 700;
-    padding: 12px 10px;
+    padding: 12px 16px;
     border-bottom: 1.5px solid #e2e8f0;
     border-right: 1px solid #f1f5f9;
     font-size: 13.5px !important;
+    min-width: 160px;
 }
 
 .custom-table td {
-    padding: 10px 8px;
+    padding: 10px 14px;
     border-bottom: 1px solid #f1f5f9;
     border-right: 1px solid #f1f5f9;
     color: #1e293b;
     vertical-align: middle;
     font-size: 13px !important;
+    min-width: 160px;
 }
 
-.custom-table tr:hover {
+/* STICKY 1ST COLUMN IMPLEMENTATION */
+.custom-table th:first-child,
+.custom-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    background-color: #ffffff;
+    border-right: 2px solid #e2e8f0 !important;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.03);
+    min-width: 180px;
+}
+
+.custom-table th:first-child {
     background-color: #f8fafc;
+    z-index: 4;
+}
+
+.custom-table tr:hover td {
+    background-color: #f8fafc;
+}
+
+.custom-table tr:hover td:first-child {
+    background-color: #f1f5f9;
 }
 
 /* PERCENTAGE BADGES */
@@ -143,13 +181,13 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 }
 
 /* SUMMARY ROWS */
-.avg-row {
+.avg-row td {
     background-color: #ffffff;
     font-weight: 700;
     color: #0f172a;
 }
 
-.best-row {
+.best-row td {
     background-color: #ffffff;
     font-weight: 800;
     color: #0284c7;
@@ -430,6 +468,9 @@ max_data_date = (
     df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
 )
 
+if "pwsd_selected_date" not in st.session_state:
+  st.session_state["pwsd_selected_date"] = max_data_date
+
 if "dr_start_date" not in st.session_state:
   st.session_state["dr_start_date"] = max_data_date - timedelta(days=7)
 
@@ -502,14 +543,12 @@ def render_exclusion_popovers(
         st.rerun()
 
   with c4:
-    # Synchronize clean string date formats
     clean_excluded_dates = [
         d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d)
         for d in st.session_state["excluded_dates"]
     ]
     st.session_state["excluded_dates"] = clean_excluded_dates
 
-    # Extract available unique date strings
     if not available_dates_df.empty:
       range_dates = (
           available_dates_df["Date"]
@@ -522,7 +561,6 @@ def render_exclusion_popovers(
       range_dates = []
       current_range_d_vals = []
 
-    # Count only excluded dates that belong to the current active range
     active_range_excluded_count = len(
         [d for d in clean_excluded_dates if d in current_range_d_vals]
     )
@@ -578,23 +616,17 @@ mode_view_type = "pwsd"
 
 # 1. MODE: PREVIOUS WEEK SAME DAY
 if selected_mode == "Previous Week Same Day":
-  s_date_init = pd.to_datetime(max_data_date)
-  weeks_num_init = 4
-  comp_dates_init = [
-      s_date_init - timedelta(days=7 * i) for i in range(weeks_num_init)
-  ]
-  unfiltered_pwsd_df = df[
-      df["Date"].dt.date.isin([d.date() for d in comp_dates_init])
-  ]
-
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     c1, c2, c3_4 = st.columns([1.5, 1.5, 2.4])
 
     with c1:
       selected_date = st.date_input(
-          "Select Date", value=max_data_date, key="pwsd_date"
+          "Select Date",
+          value=st.session_state["pwsd_selected_date"],
+          key="pwsd_date",
       )
+      st.session_state["pwsd_selected_date"] = selected_date
 
     with c2:
       weeks_compare = st.selectbox(
@@ -614,7 +646,7 @@ if selected_mode == "Previous Week Same Day":
       )
       weeks_num = int(weeks_compare.split()[0])
 
-    s_date = pd.to_datetime(selected_date)
+    s_date = pd.to_datetime(st.session_state["pwsd_selected_date"])
     comp_dates = [s_date - timedelta(days=7 * i) for i in range(weeks_num)]
     unfiltered_pwsd_df = df[
         df["Date"].dt.date.isin([d.date() for d in comp_dates])
@@ -886,7 +918,66 @@ with tab1:
   elif active_mode_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    tb1, tb2, tb3, tb4 = st.columns([1.5, 1.2, 1.8, 1.2])
+    # 1. SCREENSHOT 1: EASY DATE SWITCHER FOR PREVIOUS WEEK SAME DAY TAB
+    if selected_mode == "Previous Week Same Day":
+      nav_c1, nav_c2, nav_c3 = st.columns([1.5, 2, 1.5])
+      cur_dt = pd.to_datetime(st.session_state["pwsd_selected_date"])
+
+      with nav_c1:
+        if st.button("‹ Previous Date", use_container_width=True):
+          st.session_state["pwsd_selected_date"] = (
+              cur_dt - timedelta(days=1)
+          ).date()
+          st.rerun()
+
+      with nav_c2:
+        st.markdown(
+            f"<div style='text-align:center; padding: 4px 0;'><b"
+            " style='font-size:17px;"
+            f" color:#0f172a;'>{cur_dt.strftime('%d %b %Y')}</b><br><span"
+            " style='color:#64748b;"
+            f" font-size:13px;'>{cur_dt.strftime('%A')}</span></div>",
+            unsafe_allow_html=True,
+        )
+
+      with nav_c3:
+        if st.button("Next Date ›", use_container_width=True):
+          st.session_state["pwsd_selected_date"] = (
+              cur_dt + timedelta(days=1)
+          ).date()
+          st.rerun()
+
+      st.markdown(
+          "<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True
+      )
+
+    # Prepare DataFrame for Export & Formatting
+    base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
+    avg_values = base_df[active_selected_kpis].mean()
+
+    best_values = {}
+    for col in active_selected_kpis:
+      if "zero" in col.lower() or "position" in col.lower():
+        best_values[col] = df[col].min()
+      else:
+        best_values[col] = df[col].max()
+
+    def fmt_val(val, metric):
+      if (
+          "%" in metric
+          or "Txn/100" in metric
+          or "Transactor/" in metric
+          or "Ratio" in metric
+          or "NI/TXN" in metric
+      ):
+        return f"{val:.1f}%"
+      elif val > 1000:
+        return f"{val:,.0f}" if val.is_integer() else f"{val:,.2f}"
+      else:
+        return f"{val:.2f}".rstrip("0").rstrip(".")
+
+    # TOOLBAR WITH CSV DOWNLOAD BUTTON
+    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.8, 1.2, 1.5])
 
     with tb1:
       transpose = st.toggle("⇄ Transpose Table", value=False)
@@ -934,30 +1025,19 @@ with tab1:
     with tb4:
       st.button("📝 Comment", use_container_width=True)
 
-    base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
-    avg_values = base_df[active_selected_kpis].mean()
+    with tb5:
+      # Download Button for the active Table
+      export_df = base_df.copy()
+      export_df["Date"] = export_df["Date"].dt.strftime("%Y-%m-%d")
+      st.download_button(
+          label="⬇ Download CSV",
+          data=export_df.to_csv(index=False),
+          file_name=f"bl_search_table_{mode_view_type}.csv",
+          mime="text/csv",
+          use_container_width=True,
+      )
 
-    best_values = {}
-    for col in active_selected_kpis:
-      if "zero" in col.lower() or "position" in col.lower():
-        best_values[col] = df[col].min()
-      else:
-        best_values[col] = df[col].max()
-
-    def fmt_val(val, metric):
-      if (
-          "%" in metric
-          or "Txn/100" in metric
-          or "Transactor/" in metric
-          or "Ratio" in metric
-          or "NI/TXN" in metric
-      ):
-        return f"{val:.1f}%"
-      elif val > 1000:
-        return f"{val:,.0f}" if val.is_integer() else f"{val:,.2f}"
-      else:
-        return f"{val:.2f}".rstrip("0").rstrip(".")
-
+    # 3. HTML TABLE WITH STICKY 1ST COLUMN (HORIZONTAL SCROLL)
     if not transpose:
       html_code = (
           "<div class='custom-table-container'><table class='custom-table'>"
@@ -1095,7 +1175,7 @@ with tab2:
   st.markdown("## 📈 Trend Visualizations")
 
   if not active_selected_kpis:
-    st.info("💡 Please select KPI chips above to display the analysis table.")
+    st.info("💡 Select KPI chips above to display the analysis table.")
   elif trend_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
