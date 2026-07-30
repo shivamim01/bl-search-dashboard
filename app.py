@@ -21,26 +21,26 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-/* GLOBAL FONTS - PROPORTIONALLY REDUCED */
+/* GLOBAL FONTS - COMPACT & READABLE */
 html, body, [class*="css"] {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 16px !important;
+    font-size: 15px !important;
     background-color: #f8fafc;
 }
 
 /* CONTAINER CARDS */
 .main-card {
     background-color: #ffffff;
-    padding: 20px 24px;
-    border-radius: 16px;
+    padding: 16px 20px;
+    border-radius: 14px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0px 4px 16px rgba(15, 23, 42, 0.03);
-    margin-bottom: 20px;
+    box-shadow: 0px 3px 12px rgba(15, 23, 42, 0.03);
+    margin-bottom: 16px;
 }
 
 /* SECTION HEADINGS */
 .row-header {
-    font-size: 18px !important;
+    font-size: 16px !important;
     font-weight: 700 !important;
     color: #0284c7 !important;
     display: flex;
@@ -50,10 +50,10 @@ html, body, [class*="css"] {
 
 /* CUSTOM STYLING FOR NATIVE STREAMLIT PILLS */
 div[data-testid="stPills"] button {
-    font-size: 14px !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
     border-radius: 999px !important;
-    padding: 4px 14px !important;
+    padding: 3px 12px !important;
 }
 
 div[data-testid="stPills"] button[aria-selected="true"] {
@@ -68,34 +68,36 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     width: 100%;
     overflow-x: auto;
     background: #ffffff;
-    border-radius: 14px;
+    border-radius: 12px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    margin-top: 16px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.03);
+    margin-top: 12px;
 }
 
 .custom-table {
     width: 100%;
     border-collapse: collapse;
     text-align: center;
-    font-size: 15px;
+    font-size: 14px;
 }
 
 .custom-table th {
     background-color: #f8fafc;
     color: #475569;
     font-weight: 700;
-    padding: 14px 12px;
+    padding: 12px 10px;
     border-bottom: 1.5px solid #e2e8f0;
     border-right: 1px solid #f1f5f9;
+    font-size: 13.5px !important;
 }
 
 .custom-table td {
-    padding: 12px 10px;
+    padding: 10px 8px;
     border-bottom: 1px solid #f1f5f9;
     border-right: 1px solid #f1f5f9;
     color: #1e293b;
     vertical-align: middle;
+    font-size: 13px !important;
 }
 
 .custom-table tr:hover {
@@ -106,27 +108,27 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 .badge-pos {
     color: #10b981;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     margin-left: 4px;
 }
 
 .badge-neg {
     color: #ef4444;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     margin-left: 4px;
 }
 
 .badge-neutral {
     color: #94a3b8;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
     margin-left: 4px;
 }
 
 .sub-avg-pos {
     display: block;
-    font-size: 12px;
+    font-size: 11px;
     color: #10b981;
     font-weight: 600;
     margin-top: 2px;
@@ -134,7 +136,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 
 .sub-avg-neg {
     display: block;
-    font-size: 12px;
+    font-size: 11px;
     color: #ef4444;
     font-weight: 600;
     margin-top: 2px;
@@ -417,6 +419,9 @@ if "excluded_days" not in st.session_state:
 if "excluded_dates" not in st.session_state:
   st.session_state["excluded_dates"] = []
 
+if "dr_quick_filter" not in st.session_state:
+  st.session_state["dr_quick_filter"] = "Past Week"
+
 
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
@@ -439,43 +444,35 @@ for c_name, c_info in st.session_state["custom_kpis_dict"].items():
     elif op == "- (Subtract A-B)":
       df[c_name] = df[a_col] - df[b_col]
 
+all_kpi_options = []
+for cat, data in KPI_GROUPS.items():
+  for m in data["metrics"]:
+    if m in df.columns and m not in all_kpi_options:
+      all_kpi_options.append(m)
+
 # =========================================================
-# DASHBOARD TITLE (UPDATED)
+# DASHBOARD TITLE
 # =========================================================
 st.title("⚡ BL Search RCA DashBoard")
 
 # =========================================================
-# TOP CONTROLS ROW
+# TOP LEVEL MODE SELECTION TABS (SCREENSHOT 1, 2, 3)
 # =========================================================
-with st.container():
-  st.markdown("<div class='main-card'>", unsafe_allow_html=True)
-  c1, c2, c3, c4 = st.columns([1.5, 1.5, 1.2, 1.2])
+mode_tabs = st.tabs([
+    "Previous Week Same Day",
+    "Date Range Comparison",
+    "Week on Week Comparison",
+    "Custom Compare",
+])
 
-  with c1:
-    max_date = (
-        df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
-    )
-    selected_date = st.date_input("Select Date", value=max_date)
+max_data_date = (
+    df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
+)
 
-  with c2:
-    weeks_compare = st.selectbox(
-        "Weeks to Compare",
-        [
-            "1 Week",
-            "2 Weeks",
-            "3 Weeks",
-            "4 Weeks",
-            "5 Weeks",
-            "6 Weeks",
-            "7 Weeks",
-            "8 Weeks",
-        ],
-        index=3,
-    )
-    weeks_num = int(weeks_compare.split()[0])
-
+# Helper function for Exclude Days & Dates popovers
+def render_exclusion_popovers():
+  c3, c4 = st.columns([1, 1])
   with c3:
-    st.markdown("<br>", unsafe_allow_html=True)
     day_count = len(st.session_state["excluded_days"])
     pop_days_label = (
         f"Exclude Days ({day_count})" if day_count > 0 else "Exclude Days"
@@ -502,7 +499,6 @@ with st.container():
         st.rerun()
 
   with c4:
-    st.markdown("<br>", unsafe_allow_html=True)
     date_count = len(st.session_state["excluded_dates"])
     pop_dates_label = (
         f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
@@ -519,34 +515,178 @@ with st.container():
       elif sel_dates:
         st.session_state["excluded_dates"] = [sel_dates]
 
-  st.markdown("</div>", unsafe_allow_html=True)
 
-# Generate Base Comparison Data
-selected_date = pd.to_datetime(selected_date)
-comparison_dates = [
-    selected_date - timedelta(days=7 * i) for i in range(weeks_num)
-]
-comparison_df = df[
-    df["Date"].dt.date.isin([d.date() for d in comparison_dates])
-].sort_values("Date", ascending=False)
+# MODE 1: PREVIOUS WEEK SAME DAY
+with mode_tabs[0]:
+  with st.container():
+    st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+    c1, c2, c3_4 = st.columns([1.5, 1.5, 2.4])
 
-if st.session_state["excluded_days"]:
-  comparison_df = comparison_df[
-      ~comparison_df["Date"]
+    with c1:
+      selected_date = st.date_input(
+          "Select Date", value=max_data_date, key="pwsd_date"
+      )
+
+    with c2:
+      weeks_compare = st.selectbox(
+          "Weeks to Compare",
+          [
+              "1 Week",
+              "2 Weeks",
+              "3 Weeks",
+              "4 Weeks",
+              "5 Weeks",
+              "6 Weeks",
+              "7 Weeks",
+              "8 Weeks",
+          ],
+          index=3,
+          key="pwsd_weeks",
+      )
+      weeks_num = int(weeks_compare.split()[0])
+
+    with c3_4:
+      st.markdown("<br>", unsafe_allow_html=True)
+      render_exclusion_popovers()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+  # Generate Mode 1 Comparison DF
+  s_date = pd.to_datetime(selected_date)
+  comp_dates = [s_date - timedelta(days=7 * i) for i in range(weeks_num)]
+  active_mode_df = df[
+      df["Date"].dt.date.isin([d.date() for d in comp_dates])
+  ].sort_values("Date", ascending=False)
+  mode_view_type = "pwsd"
+
+
+# MODE 2: DATE RANGE COMPARISON
+with mode_tabs[1]:
+  with st.container():
+    st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+    dc1, dc2 = st.columns([2.5, 3])
+
+    with dc1:
+      # Calculate default date range based on quick filter selection
+      q_val = st.session_state["dr_quick_filter"]
+      days_back = (
+          7
+          if q_val == "Past Week"
+          else (
+              14
+              if q_val == "2 Weeks"
+              else (21 if q_val == "3 Weeks" else 28)
+          )
+      )
+      default_start = max_data_date - timedelta(days=days_back)
+
+      selected_dr = st.date_input(
+          "Date Range",
+          value=(default_start, max_data_date),
+          key="dr_picker",
+      )
+
+    with dc2:
+      st.markdown("**Quick Filters**")
+      q_cols = st.columns(4)
+      for idx, q_label in enumerate(
+          ["Past Week", "2 Weeks", "3 Weeks", "4 Weeks"]
+      ):
+        with q_cols[idx]:
+          if st.button(
+              q_label,
+              key=f"qf_btn_{q_label}",
+              use_container_width=True,
+          ):
+            st.session_state["dr_quick_filter"] = q_label
+            st.rerun()
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    render_exclusion_popovers()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+  # Generate Mode 2 Comparison DF
+  if isinstance(selected_dr, (list, tuple)) and len(selected_dr) == 2:
+    start_d, end_d = selected_dr[0], selected_dr[1]
+  else:
+    start_d, end_d = (
+        selected_dr,
+        selected_dr if not isinstance(selected_dr, (list, tuple)) else max_data_date,
+    )
+
+  active_mode_df = df[
+      (df["Date"].dt.date >= start_d) & (df["Date"].dt.date <= end_d)
+  ].sort_values("Date", ascending=False)
+  mode_view_type = "date_range"
+
+
+# MODE 3: WEEK ON WEEK COMPARISON
+with mode_tabs[2]:
+  with st.container():
+    st.markdown("<div class='main-card'>", unsafe_allow_html=True)
+    st.markdown("### Week on Week Comparison")
+    st.caption(
+        "Showing the latest completed Sunday to Saturday weeks, aggregated"
+        " by weekly averages."
+    )
+
+    wc1, wc2 = st.columns([1.5, 3.5])
+    with wc1:
+      wow_weeks = st.selectbox(
+          "Weeks to compare",
+          ["2 Weeks", "3 Weeks", "4 Weeks", "5 Weeks", "6 Weeks", "8 Weeks"],
+          index=2,
+          key="wow_weeks_sel",
+      )
+      wow_num = int(wow_weeks.split()[0])
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+  # Group by Sunday-Saturday weeks
+  df_wow = df.copy()
+  df_wow["Week_Start"] = df_wow["Date"].apply(
+      lambda d: d - timedelta(days=(d.weekday() + 1) % 7)
+  )
+
+  # Compute weekly averages for numeric columns
+  numeric_cols = [c for c in df_wow.columns if c not in ["Date", "Week_Start"]]
+  weekly_avg_df = (
+      df_wow.groupby("Week_Start")[numeric_cols].mean().reset_index()
+  )
+  weekly_avg_df = weekly_avg_df.rename(columns={"Week_Start": "Date"})
+
+  # Select top N recent weeks
+  active_mode_df = weekly_avg_df.sort_values(
+      "Date", ascending=False
+  ).head(wow_num)
+  mode_view_type = "wow"
+
+
+# MODE 4: CUSTOM COMPARE
+with mode_tabs[3]:
+  st.info("💡 Select custom dates or dimensions for tailored comparisons.")
+
+
+# APPLY GLOBAL DAY AND DATE EXCLUSIONS TO ACTIVE MODE DATAFRAME
+if st.session_state["excluded_days"] and not active_mode_df.empty:
+  active_mode_df = active_mode_df[
+      ~active_mode_df["Date"]
       .dt.day_name()
       .isin(st.session_state["excluded_days"])
   ]
 
-if st.session_state["excluded_dates"]:
+if st.session_state["excluded_dates"] and not active_mode_df.empty:
   ex_date_strs = [
       pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]
   ]
-  comparison_df = comparison_df[
-      ~comparison_df["Date"].dt.date.isin(ex_date_strs)
+  active_mode_df = active_mode_df[
+      ~active_mode_df["Date"].dt.date.isin(ex_date_strs)
   ]
 
+trend_df = active_mode_df.sort_values("Date", ascending=True)
+
 # =========================================================
-# KPI SELECTION PANEL
+# KPI SELECTION PANEL (SHARED ACROSS ALL MODES)
 # =========================================================
 with st.container():
   st.markdown("<div class='main-card'>", unsafe_allow_html=True)
@@ -560,11 +700,24 @@ with st.container():
     )
 
   with hdr2:
-    search_query = st.text_input(
-        "Search KPIs",
-        placeholder="🔍 Search KPIs...",
+    search_selected_kpi = st.selectbox(
+        "Search KPIs...",
+        options=[""] + all_kpi_options,
+        index=0,
+        placeholder="🔍 Type or select KPI to search and highlight...",
         label_visibility="collapsed",
-    ).strip().lower()
+        key="kpi_autosuggest_search",
+    )
+
+    if search_selected_kpi:
+      for cat, data in KPI_GROUPS.items():
+        if search_selected_kpi in data["metrics"]:
+          if search_selected_kpi not in st.session_state[f"selected_{cat}"]:
+            st.session_state[f"selected_{cat}"].append(search_selected_kpi)
+            st.session_state[f"pills_{cat}"] = st.session_state[
+                f"selected_{cat}"
+            ]
+            st.rerun()
 
   with hdr3:
     if st.button(
@@ -574,19 +727,12 @@ with st.container():
       st.rerun()
 
   st.markdown(
-      "<hr style='margin: 14px 0 20px 0; border-color: #f1f5f9;'>",
+      "<hr style='margin: 12px 0 16px 0; border-color: #f1f5f9;'>",
       unsafe_allow_html=True,
   )
 
   for cat, data in KPI_GROUPS.items():
     available_metrics = [m for m in data["metrics"] if m in df.columns]
-
-    if search_query:
-      available_metrics = [
-          m for m in available_metrics if search_query in m.lower()
-      ]
-      if not available_metrics:
-        continue
 
     show_more_key = f"more_{cat}"
     if show_more_key not in st.session_state:
@@ -595,7 +741,6 @@ with st.container():
     limit = len(available_metrics) if st.session_state[show_more_key] else 5
     visible_metrics = available_metrics[:limit]
 
-    # REDUCED HORIZONTAL SPACING: Title col changed from 2.2 to 1.5
     col_label, col_chips, col_more = st.columns([1.5, 7.7, 0.8])
 
     with col_label:
@@ -637,7 +782,7 @@ with st.container():
           st.rerun()
 
     st.markdown(
-        "<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True
+        "<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True
     )
 
   st.markdown("</div>", unsafe_allow_html=True)
@@ -664,17 +809,14 @@ tab1, tab2, tab3 = st.tabs(
 # TAB 1: DYNAMIC PERFORMANCE ANALYSIS TABLE
 # =========================================================
 with tab1:
-  st.markdown("## ⚡ BL Search RCA DashBoard")
+  st.markdown("## ⚡ Dynamic Performance Analysis Table")
 
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
-  elif comparison_df.empty:
-    st.warning(
-        "⚠️ No data available for selected dates/filters. Please adjust your"
-        " excluded days or dates."
-    )
+  elif active_mode_df.empty:
+    st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.8, 1.2])
+    tb1, tb2, tb3, tb4 = st.columns([1.5, 1.2, 1.8, 1.2])
 
     with tb1:
       transpose = st.toggle("⇄ Transpose Table", value=False)
@@ -685,11 +827,6 @@ with tab1:
         st.rerun()
 
     with tb3:
-      if st.button("⏮ Reset KPIs", use_container_width=True):
-        reset_to_strict_defaults()
-        st.rerun()
-
-    with tb4:
       with st.popover("➕ Add Calc KPI", use_container_width=True):
         st.caption("Create a dynamic metric from existing data.")
 
@@ -724,10 +861,10 @@ with tab1:
             }
             st.rerun()
 
-    with tb5:
+    with tb4:
       st.button("📝 Comment", use_container_width=True)
 
-    base_df = comparison_df[["Date"] + active_selected_kpis].copy()
+    base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
     avg_values = base_df[active_selected_kpis].mean()
 
     best_values = {}
@@ -763,7 +900,11 @@ with tab1:
       base_row = base_df.iloc[0] if len(base_df) > 0 else None
 
       for idx, row in base_df.iterrows():
-        date_str = row["Date"].strftime("%Y-%m-%d - %a")
+        date_str = (
+            row["Date"].strftime("%Y-%m-%d - %a")
+            if mode_view_type != "wow"
+            else f"Week of {row['Date'].strftime('%Y-%m-%d')}"
+        )
         html_code += f"<tr><td style='font-weight:700;'>{date_str}</td>"
 
         for metric in active_selected_kpis:
@@ -799,8 +940,7 @@ with tab1:
         html_code += "</tr>"
 
       html_code += (
-          f"<tr class='avg-row'><td>Average of past"
-          f" {len(base_df)-1 if len(base_df)>1 else 1} weeks</td>"
+          f"<tr class='avg-row'><td>Average of Selected Period</td>"
       )
       for metric in active_selected_kpis:
         html_code += f"<td>{fmt_val(avg_values[metric], metric)}</td>"
@@ -808,7 +948,7 @@ with tab1:
 
       html_code += (
           "<tr class='best-row'><td style='color:#0284c7;"
-          " font-weight:800;'>Best Ever (Daily)</td>"
+          " font-weight:800;'>Best Ever</td>"
       )
       for metric in active_selected_kpis:
         html_code += (
@@ -817,7 +957,7 @@ with tab1:
         )
       html_code += "</tr>"
 
-      html_code += "tbody></table></div>"
+      html_code += "</tbody></table></div>"
 
     else:
       html_code = (
@@ -826,9 +966,14 @@ with tab1:
       html_code += "<thead><tr><th>KPI / Metric</th>"
 
       for idx, row in base_df.iterrows():
-        html_code += f"<th>{row['Date'].strftime('%Y-%m-%d')}</th>"
+        d_lbl = (
+            row["Date"].strftime("%Y-%m-%d")
+            if mode_view_type != "wow"
+            else f"Wk {row['Date'].strftime('%m-%d')}"
+        )
+        html_code += f"<th>{d_lbl}</th>"
       html_code += (
-          f"<th>Avg ({len(base_df)}W)</th><th>Best Ever</th></tr></thead><tbody>"
+          f"<th>Avg</th><th>Best Ever</th></tr></thead><tbody>"
       )
 
       base_row = base_df.iloc[0] if len(base_df) > 0 else None
@@ -836,7 +981,7 @@ with tab1:
       for metric in active_selected_kpis:
         html_code += (
             f"<tr><td style='font-weight:700; text-align:left;"
-            f" padding-left:20px;'>{metric}</td>"
+            f" padding-left:16px;'>{metric}</td>"
         )
         base_val = base_row[metric] if base_row is not None else 0
 
@@ -860,7 +1005,7 @@ with tab1:
             f" font-weight:800;'>{fmt_val(best_values[metric], metric)}</td></tr>"
         )
 
-      html_code += "tbody></table></div>"
+      html_code += "</tbody></table></div>"
 
     st.markdown(html_code, unsafe_allow_html=True)
 
@@ -872,50 +1017,30 @@ with tab2:
 
   if not active_selected_kpis:
     st.info("💡 Select KPI chips above to display visual trends.")
+  elif trend_df.empty:
+    st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    col_t1, col_t2 = st.columns([2, 1])
+    col_t1, col_t2 = st.columns([3, 1])
     with col_t1:
-      min_d, max_d = df["Date"].min().date(), df["Date"].max().date()
-      date_range = st.slider(
-          "Select Date Range for Trends",
-          min_value=min_d,
-          max_value=max_d,
-          value=(min_d, max_d),
-      )
-    with col_t2:
       chart_type = st.radio(
           "Chart Style", ["Line Chart", "Bar Chart"], horizontal=True
       )
 
-    filtered_trend_df = df[
-        (df["Date"].dt.date >= date_range[0])
-        & (df["Date"].dt.date <= date_range[1])
-    ]
-
-    if st.session_state["excluded_days"]:
-      filtered_trend_df = filtered_trend_df[
-          ~filtered_trend_df["Date"]
-          .dt.day_name()
-          .isin(st.session_state["excluded_days"])
-      ]
-
-    if st.session_state["excluded_dates"]:
-      ex_date_strs = [
-          pd.to_datetime(d).date() for d in st.session_state["excluded_dates"]
-      ]
-      filtered_trend_df = filtered_trend_df[
-          ~filtered_trend_df["Date"].dt.date.isin(ex_date_strs)
-      ]
+    x_dates_formatted = (
+        trend_df["Date"].dt.strftime("%Y-%m-%d - %a")
+        if mode_view_type != "wow"
+        else trend_df["Date"].dt.strftime("Wk %Y-%m-%d")
+    )
 
     st.markdown("### Combined Overview")
     fig = go.Figure()
     for metric in active_selected_kpis:
-      if metric in filtered_trend_df.columns:
+      if metric in trend_df.columns:
         if chart_type == "Line Chart":
           fig.add_trace(
               go.Scatter(
-                  x=filtered_trend_df["Date"],
-                  y=filtered_trend_df[metric],
+                  x=x_dates_formatted,
+                  y=trend_df[metric],
                   mode="lines+markers",
                   name=metric,
               )
@@ -923,8 +1048,8 @@ with tab2:
         else:
           fig.add_trace(
               go.Bar(
-                  x=filtered_trend_df["Date"],
-                  y=filtered_trend_df[metric],
+                  x=x_dates_formatted,
+                  y=trend_df[metric],
                   name=metric,
               )
           )
@@ -932,18 +1057,19 @@ with tab2:
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=500,
-        font=dict(size=16),
+        height=480,
+        font=dict(size=14),
         margin=dict(l=20, r=20, t=30, b=20),
+        xaxis=dict(type="category"),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("<hr style='margin: 28px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 24px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual KPI Trends")
 
     ind_cols = st.columns(2)
     for idx, metric in enumerate(active_selected_kpis):
-      if metric in filtered_trend_df.columns:
+      if metric in trend_df.columns:
         with ind_cols[idx % 2]:
           st.markdown(f"#### {metric}")
           fig_ind = go.Figure()
@@ -951,8 +1077,8 @@ with tab2:
           if chart_type == "Line Chart":
             fig_ind.add_trace(
                 go.Scatter(
-                    x=filtered_trend_df["Date"],
-                    y=filtered_trend_df[metric],
+                    x=x_dates_formatted,
+                    y=trend_df[metric],
                     mode="lines+markers",
                     name=metric,
                     line=dict(color="#0284c7", width=2.5),
@@ -961,8 +1087,8 @@ with tab2:
           else:
             fig_ind.add_trace(
                 go.Bar(
-                    x=filtered_trend_df["Date"],
-                    y=filtered_trend_df[metric],
+                    x=x_dates_formatted,
+                    y=trend_df[metric],
                     name=metric,
                     marker=dict(color="#0284c7"),
                 )
@@ -971,10 +1097,11 @@ with tab2:
           fig_ind.update_layout(
               template="plotly_white",
               hovermode="x unified",
-              height=360,
-              font=dict(size=14),
+              height=340,
+              font=dict(size=13),
               margin=dict(l=20, r=20, t=30, b=20),
               showlegend=False,
+              xaxis=dict(type="category"),
           )
           st.plotly_chart(fig_ind, use_container_width=True)
 
