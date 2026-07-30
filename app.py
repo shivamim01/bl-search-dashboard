@@ -1,366 +1,143 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
 from datetime import timedelta
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import streamlit as st
 
 # =========================================================
-# PAGE CONFIG 
+# PAGE CONFIG
 # =========================================================
 st.set_page_config(
     page_title="BL Search Dashboard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
 # =========================================================
 # CUSTOM CSS
 # =========================================================
-st.markdown("""
+st.markdown(
+    """
 <style>
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
-    font-size: 20px !important;
+    font-size: 18px !important;
 }
 
 /* MAIN TITLES */
-h1 {
-    font-size: 54px !important;
-    font-weight: 800 !important;
-}
-
-h2 {
-    font-size: 38px !important;
-    font-weight: 700 !important;
-}
-
-h3 {
-    font-size: 30px !important;
-    font-weight: 700 !important;
-}
+h1 { font-size: 44px !important; font-weight: 800 !important; }
+h2 { font-size: 32px !important; font-weight: 700 !important; }
+h3 { font-size: 24px !important; font-weight: 700 !important; }
 
 /* SIDEBAR */
-section[data-testid="stSidebar"] {
-    width: 420px !important;
-    background: #ffffff;
-    border-right: 1px solid #eef2f7;
-}
-
-/* SIDEBAR LABELS */
-section[data-testid="stSidebar"] label {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-}
-
-/* INPUTS */
-.stSelectbox label,
-.stDateInput label,
-.stMultiSelect label {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-}
-
-/* SELECT BOX */
-div[data-baseweb="select"] {
-    font-size: 18px !important;
-}
-
-/* CHECKBOX */
-.stCheckbox label {
-    font-size: 18px !important;
-    font-weight: 600 !important;
-}
-
-/* BUTTONS */
-.stButton button {
-    border-radius: 14px !important;
-    height: 52px !important;
-    font-size: 17px !important;
-    font-weight: 700 !important;
-}
-
-/* METRIC CARDS */
-.metric-card {
-    background: white;
-    border-radius: 24px;
-    padding: 34px;
-    text-align: center;
-    box-shadow: 0px 6px 18px rgba(15, 23, 42, 0.06);
-    border: 1px solid #eef2f7;
-}
-
-.metric-value {
-    font-size: 64px;
-    font-weight: 800;
-    color: #111827;
-}
-
-.metric-label {
-    font-size: 22px;
-    color: #6b7280;
-    margin-bottom: 12px;
-}
-
-/* TABLES */
-thead tr th {
-    font-size: 20px !important;
-    font-weight: 700 !important;
-    padding: 22px !important;
-}
-
-tbody tr td {
-    font-size: 18px !important;
-    padding: 20px !important;
-}
-
-/* SECTION TITLES */
-.section-title {
-    font-size: 42px;
-    font-weight: 800;
-    margin-bottom: 24px;
-    color: #111827;
-}
-
-/* SUBTITLE */
-.small-subtitle {
-    color: #6b7280;
-    font-size: 24px;
-    margin-bottom: 24px;
-}
-
-/* CHART AREA */
-.js-plotly-plot {
-    zoom: 1.12;
-}
-
-.main {
-    background-color: #f5f7fb;
-}
-
 section[data-testid="stSidebar"] {
     width: 380px !important;
     background: #ffffff;
     border-right: 1px solid #eef2f7;
 }
 
-.block-container {
-    padding-top: 1.2rem;
-    padding-bottom: 2rem;
-    max-width: 100%;
+section[data-testid="stSidebar"] label {
+    font-size: 16px !important;
+    font-weight: 600 !important;
 }
 
-h1, h2, h3 {
-    color: #111827;
-    font-weight: 700;
-}
-
-.card {
-    background: white;
-    border-radius: 22px;
-    padding: 28px;
-    box-shadow: 0px 6px 18px rgba(15, 23, 42, 0.06);
-    border: 1px solid #eef2f7;
-}
-
-.control-card {
-    background: white;
-    border-radius: 26px;
-    padding: 28px;
-    box-shadow: 0px 6px 18px rgba(15, 23, 42, 0.06);
-    border: 1px solid #eef2f7;
-    margin-bottom: 24px;
-}
-
+/* METRIC CARDS */
 .metric-card {
     background: white;
-    border-radius: 22px;
-    padding: 28px;
+    padding: 24px;
+    border-radius: 18px;
+    border: 1px solid #E5E7EB;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     text-align: center;
-    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.05);
-    border: 1px solid #eef2f7;
-}
-
-.metric-value {
-    font-size: 52px;
-    font-weight: 700;
-    color: #111827;
+    min-height: 200px;
 }
 
 .metric-label {
-    font-size: 18px;
-    color: #6b7280;
-    margin-bottom: 10px;
+    font-size: 16px;
+    color: #6B7280;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.metric-value {
+    font-size: 38px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 12px;
 }
 
 .section-title {
-    font-size: 34px;
+    font-size: 28px;
     font-weight: 700;
-    margin-bottom: 20px;
+    margin-bottom: 16px;
     color: #111827;
 }
 
 .small-subtitle {
     color: #6b7280;
-    font-size: 20px;
-    margin-bottom: 16px;
-}
-
-.green-badge {
-    background: #dcfce7;
-    color: #15803d;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 14px;
-}
-
-.red-badge {
-    background: #fee2e2;
-    color: #dc2626;
-    padding: 6px 12px;
-    border-radius: 999px;
-    font-weight: 700;
-    font-size: 14px;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 18px;
-    overflow: hidden;
-}
-
-thead tr th {
-    font-size: 18px !important;
-    font-weight: 700 !important;
-    padding: 18px !important;
-    background: #f8fafc;
-}
-
-tbody tr td {
-    font-size: 17px !important;
-    padding: 18px !important;
-}
-
-.stButton button {
-    border-radius: 14px !important;
-    height: 48px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-}
-
-.stCheckbox label {
-    font-size: 16px !important;
-    font-weight: 600;
-}
-
-div[data-baseweb="select"] * {
-    cursor: pointer !important;
-}
-
-div[data-baseweb="input"] * {
-    cursor: pointer !important;
-}
-
-input {
-    cursor: pointer !important;
-}
-
-select {
-    cursor: pointer !important;
-}
-
-.metric-card {
-    background: white;
-    padding: 28px;
-    border-radius: 18px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    text-align: center;
-}
-
-.metric-label {
     font-size: 18px;
-    color: #6B7280;
-    font-weight: 600;
-    margin-bottom: 18px;
-}
-
-.metric-value {
-    font-size: 42px;
-    font-weight: 800;
-    color: #111827;
-}
-
-.green-badge {
-    background: #DCFCE7;
-    color: #15803D;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 16px;
-    font-weight: 700;
-}
-
-.red-badge {
-    background: #FEE2E2;
-    color: #DC2626;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 16px;
-    font-weight: 700;
+    margin-bottom: 20px;
 }
 
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # =========================================================
-# DATA LOAD
+# DATA LOAD & CLEANING (FIXED PERCENTAGE PARSING)
 # =========================================================
-csv_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vThPxxJxqepKKuCVQuLX67chDHIbaA6jnF9ggTcA0qGAM0hpezfsx3s-ZfkGKsl0ukrGQ0vs7I_A81L/pub?output=csv"
+csv_url = "https://docs.google.com/spreadsheets/d/1z1wOGh4fehBVxDL4JXO1p2p3uZG77sd4FD5jhRXI5qE/export?format=csv&gid=0"
+
 
 @st.cache_data(ttl=300)
 def load_data():
+  df = pd.read_csv(csv_url)
 
-    df = pd.read_csv(csv_url)
+  # Clean header column names
+  df.columns = df.columns.str.strip()
 
-    df = df[df["Date"] != "Average"]
+  # Filter out summary/average rows
+  df = df[
+      ~df["Date"].astype(str).str.lower().isin(["average", "total", "nan", ""])
+  ]
 
-    df["Date"] = pd.to_datetime(
-        df["Date"],
-        errors="coerce"
-    )
+  # Parse Date column
+  df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+  df = df.dropna(subset=["Date"])
 
-    df = df.dropna(subset=["Date"])
+  # Sanitize numeric and percentage columns safely
+  for col in df.columns:
+    if col != "Date":
+      # Convert series to string for cleaning
+      s = (
+          df[col]
+          .astype(str)
+          .str.strip()
+          .str.replace(",", "", regex=False)
+          .str.replace("$", "", regex=False)
+      )
 
-    for col in df.columns:
+      # Clean percentage signs, invalid formulas, and null representations
+      s = s.str.replace("%", "", regex=False).replace(
+          ["None", "#REF!", "#N/A", "#VALUE!", "nan", "None", ""], "0"
+      )
 
-        if col != "Date":
+      # Parse as numeric float
+      df[col] = pd.to_numeric(s, errors="coerce").fillna(0)
 
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.replace(",", "")
-                .replace("None", "0")
-                .replace("#REF!", "0")
-            )
+  df = df.sort_values("Date")
+  return df
 
-            df[col] = pd.to_numeric(
-                df[col],
-                errors="coerce"
-            ).fillna(0)
-
-    df = df.sort_values("Date")
-
-    return df
 
 df = load_data()
 
 # =========================================================
-# KPI DEFINITIONS
+# DYNAMIC KPI & COLUMN CATEGORIZATION
 # =========================================================
-SEARCH_KPIS = [
+KNOWN_SEARCH_KPIS = [
     "Trade Searches",
     "Seller Searches",
     "Mobile Searches",
@@ -370,10 +147,10 @@ SEARCH_KPIS = [
     "Searches excluding top 20 Sellers",
     "Daily Active searchers",
     "Final Zero Result Search",
-    "Numeric Searches"
+    "Numeric Searches",
 ]
 
-TXN_KPIS = [
+KNOWN_TXN_KPIS = [
     "BL Search API Txn",
     "bl search txn",
     "Android",
@@ -382,636 +159,338 @@ TXN_KPIS = [
     "Unique Transactors",
     "Txn from Top 10 position",
     "Bizfeed Txn - BL search page",
-    "Numeric Searches Txn"
+    "Numeric Searches Txn",
 ]
+
+# Auto-discover remaining dynamic sheet columns
+existing_cols = [c for c in df.columns if c != "Date"]
+uncategorized_cols = [
+    c
+    for c in existing_cols
+    if c not in KNOWN_SEARCH_KPIS and c not in KNOWN_TXN_KPIS
+]
+
+SEARCH_KPIS = [c for c in KNOWN_SEARCH_KPIS if c in df.columns]
+TXN_KPIS = [c for c in KNOWN_TXN_KPIS if c in df.columns]
+
+for col in uncategorized_cols:
+  if any(
+      kw in col.lower()
+      for kw in ["txn", "transact", "order", "buyer", "seller"]
+  ):
+    TXN_KPIS.append(col)
+  else:
+    SEARCH_KPIS.append(col)
 
 # =========================================================
 # DERIVED KPIs
 # =========================================================
 if (
-    "BL Search API Txn" in df.columns and
-    "Searches excluding top 20 Sellers" in df.columns
-):
-    df["Txn/100 Searches - removing top 20"] = (
-        df["BL Search API Txn"]
-        /
-        df["Searches excluding top 20 Sellers"]
-    ) * 100
-
-if (
-    "Txn from Top 10 position" in df.columns and
     "BL Search API Txn" in df.columns
+    and "Searches excluding top 20 Sellers" in df.columns
 ):
-    df["Txn from Top 10 position in %"] = (
-        df["Txn from Top 10 position"]
-        /
-        df["BL Search API Txn"]
-    ) * 100
+  df["Txn/100 Searches - removing top 20"] = (
+      df["BL Search API Txn"]
+      / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
+  ).fillna(0) * 100
 
 if (
-    "Final Zero Result Search" in df.columns and
-    "Searches excluding top 20 Sellers" in df.columns
+    "Txn from Top 10 position" in df.columns
+    and "BL Search API Txn" in df.columns
 ):
-    df["Zero Search Result % after removing top 20 sellers"] = (
-        df["Final Zero Result Search"]
-        /
-        df["Searches excluding top 20 Sellers"]
-    ) * 100
+  df["Txn from Top 10 position in %"] = (
+      df["Txn from Top 10 position"]
+      / df["BL Search API Txn"].replace(0, pd.NA)
+  ).fillna(0) * 100
 
 if (
-    "Numeric Searches Txn" in df.columns and
-    "Numeric Searches" in df.columns
+    "Final Zero Result Search" in df.columns
+    and "Searches excluding top 20 Sellers" in df.columns
 ):
-    df["Numeric Searches Txn/100 Searches"] = (
-        df["Numeric Searches Txn"]
-        /
-        df["Numeric Searches"]
-    ) * 100
+  df["Zero Search Result % after removing top 20 sellers"] = (
+      df["Final Zero Result Search"]
+      / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
+  ).fillna(0) * 100
+
+if "Numeric Searches Txn" in df.columns and "Numeric Searches" in df.columns:
+  df["Numeric Searches Txn/100 Searches"] = (
+      df["Numeric Searches Txn"] / df["Numeric Searches"].replace(0, pd.NA)
+  ).fillna(0) * 100
 
 KPI_METRICS = [
-    "Txn/100 Searches - removing top 20",
-    "Mean Purchase Position - Search",
-    "Txn from Top 10 position in %",
-    "Zero Search Result % after removing top 20 sellers",
-    "Numeric Searches Txn/100 Searches"
+    c
+    for c in [
+        "Txn/100 Searches - removing top 20",
+        "Mean Purchase Position - Search",
+        "Txn from Top 10 position in %",
+        "Zero Search Result % after removing top 20 sellers",
+        "Numeric Searches Txn/100 Searches",
+    ]
+    if c in df.columns
 ]
 
 # =========================================================
-# SESSION STATE
-# =========================================================
-if "selected_searches" not in st.session_state:
-    st.session_state.selected_searches = []
-
-if "selected_txns" not in st.session_state:
-    st.session_state.selected_txns = []
-
-if "selected_kpis" not in st.session_state:
-    st.session_state.selected_kpis = []
-
-# =========================================================
-# SIDEBAR
+# SIDEBAR FILTERS
 # =========================================================
 st.sidebar.markdown(
-    "<h1 style='font-size:32px;'>Dashboard Filters</h1>",
-    unsafe_allow_html=True
+    "<h2 style='font-size:24px;'>Dashboard Filters</h2>", unsafe_allow_html=True
 )
 
-# =========================================================
-# CHIP FUNCTION
-# =========================================================
+
 def chip_selector(section_name, items, state_key):
+  st.sidebar.markdown(f"### {section_name}")
 
-    st.sidebar.markdown(f"### {section_name}")
+  col_a, col_b = st.sidebar.columns(2)
+  if col_a.button("Select All", key=f"all_{state_key}"):
+    st.session_state[state_key] = items.copy()
+  if col_b.button("Clear All", key=f"clear_{state_key}"):
+    st.session_state[state_key] = []
 
-    cols = st.sidebar.columns(2)
+  if state_key not in st.session_state:
+    st.session_state[state_key] = []
 
-    for idx, item in enumerate(items):
+  cols = st.sidebar.columns(2)
+  for idx, item in enumerate(items):
+    with cols[idx % 2]:
+      checked = st.checkbox(
+          item,
+          value=item in st.session_state[state_key],
+          key=f"{state_key}_{item}",
+      )
+      if checked and item not in st.session_state[state_key]:
+        st.session_state[state_key].append(item)
+      elif not checked and item in st.session_state[state_key]:
+        st.session_state[state_key].remove(item)
 
-        if item not in df.columns and item not in KPI_METRICS:
-            continue
 
-        with cols[idx % 2]:
-
-            checked = st.checkbox(
-                item,
-                value=item in st.session_state[state_key],
-                key=f"{state_key}_{item}"
-            )
-
-            if checked:
-
-                if item not in st.session_state[state_key]:
-                    st.session_state[state_key].append(item)
-
-            else:
-
-                if item in st.session_state[state_key]:
-                    st.session_state[state_key].remove(item)
-
-# =========================================================
-# SIDEBAR SECTIONS
-# =========================================================
-chip_selector(
-    "Searches Data",
-    SEARCH_KPIS,
-    "selected_searches"
-)
-
+chip_selector("Searches Data", SEARCH_KPIS, "selected_searches")
 st.sidebar.markdown("---")
-
-chip_selector(
-    "Txn Data",
-    TXN_KPIS,
-    "selected_txns"
-)
-
+chip_selector("Txn Data", TXN_KPIS, "selected_txns")
 st.sidebar.markdown("---")
-
-chip_selector(
-    "KPIs",
-    KPI_METRICS,
-    "selected_kpis"
-)
+chip_selector("Derived KPIs", KPI_METRICS, "selected_kpis")
 
 # =========================================================
-# HEADER
+# HEADER & CONTROL PANEL
 # =========================================================
 st.title("📊 BL Search Dashboard")
-
 st.markdown(
-    "<div class='small-subtitle'>Real-time BL Search KPIs from automated Google Sheets</div>",
-    unsafe_allow_html=True
+    "<div class='small-subtitle'>Real-time BL Search KPIs & Automated Google"
+    " Sheets Sync</div>",
+    unsafe_allow_html=True,
 )
 
-# =========================================================
-# CONTROL PANEL
-# =========================================================
 with st.container():
-
-    top1, top2 = st.columns(2)
-
-    with top1:
-        selected_date = st.date_input(
-            "Select Date",
-            value=df["Date"].max().date()
-        )
-
-    with top2:
-        weeks_compare = st.selectbox(
-            "Weeks to Compare",
-            list(range(1, 9)),
-            index=3
-        )
+  top1, top2 = st.columns(2)
+  with top1:
+    max_date = (
+        df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
+    )
+    selected_date = st.date_input("Select Base Comparison Date", value=max_date)
+  with top2:
+    weeks_compare = st.selectbox("Weeks to Compare", list(range(1, 9)), index=3)
 
 # =========================================================
-# DATE COMPARISON
+# DATE COMPARISON LOGIC
 # =========================================================
 selected_date = pd.to_datetime(selected_date)
-
-comparison_dates = [selected_date]
-
-for i in range(1, weeks_compare):
-    comparison_dates.append(
-        selected_date - timedelta(days=7*i)
-    )
-
-comparison_df = df[
-    df["Date"].dt.date.isin(
-        [d.date() for d in comparison_dates]
-    )
+comparison_dates = [
+    selected_date - timedelta(days=7 * i) for i in range(weeks_compare)
 ]
 
-comparison_df = comparison_df.sort_values(
-    "Date",
-    ascending=False
-)
+comparison_df = df[
+    df["Date"].dt.date.isin([d.date() for d in comparison_dates])
+].sort_values("Date", ascending=False)
 
 # =========================================================
-# KPI CARDS
+# EXECUTIVE KPI CARDS
 # =========================================================
-
 st.markdown("## Executive KPI Overview")
 
 card_metrics = [
-    "Searches excluding top 20 Sellers",
-    "Daily Active searchers",
-    "Final Zero Result Search",
-    "BL Search API Txn",
-    "Unique Transactors",
-    "Txn/100 Searches - removing top 20",
-    "Zero Search Result % after removing top 20 sellers",
-    "Numeric Searches Txn/100 Searches"
+    c
+    for c in [
+        "Searches excluding top 20 Sellers",
+        "Daily Active searchers",
+        "Final Zero Result Search",
+        "BL Search API Txn",
+        "Unique Transactors",
+        "Txn/100 Searches - removing top 20",
+        "Zero Search Result % after removing top 20 sellers",
+        "Numeric Searches Txn/100 Searches",
+    ]
+    if c in df.columns
 ]
 
-# =========================================================
-# USE SELECTED DATE
-# =========================================================
-
 selected_df = df[df["Date"] == selected_date]
-
-if len(selected_df) > 0:
-    latest = selected_df.iloc[0]
-else:
-    latest = df.iloc[-1]
-
+latest = selected_df.iloc[0] if not selected_df.empty else df.iloc[-1]
 previous_df = df[df["Date"] < latest["Date"]]
-
-if len(previous_df) > 0:
-    previous = previous_df.iloc[-1]
-else:
-    previous = latest
+previous = previous_df.iloc[-1] if not previous_df.empty else latest
 
 for i in range(0, len(card_metrics), 4):
+  cols = st.columns(4)
+  for j in range(4):
+    if i + j >= len(card_metrics):
+      continue
+    metric = card_metrics[i + j]
+    current = latest[metric]
+    prev = previous[metric]
+    delta = current - prev
+    delta_pct = (delta / prev * 100) if prev != 0 else 0
 
-    cols = st.columns(4)
+    positive = delta >= 0
+    badge_color = "#DCFCE7" if positive else "#FEE2E2"
+    text_color = "#15803D" if positive else "#DC2626"
+    arrow = "↑" if positive else "↓"
+    value_str = (
+        f"{current:.2f}%"
+        if ("%" in metric or "Txn/100" in metric or "Transactor/" in metric)
+        else f"{int(current):,}"
+    )
 
-    for j in range(4):
-
-        if i + j >= len(card_metrics):
-            continue
-
-        metric = card_metrics[i + j]
-
-        if metric not in df.columns:
-            continue
-
-        current = latest[metric]
-        prev = previous[metric]
-
-        delta = current - prev
-
-        if prev != 0:
-            delta_pct = (delta / prev) * 100
-        else:
-            delta_pct = 0
-
-        positive = delta >= 0
-
-        badge_color = "#DCFCE7" if positive else "#FEE2E2"
-        text_color = "#15803D" if positive else "#DC2626"
-
-        arrow = "↑" if positive else "↓"
-
-        if "%" in metric or "Txn/100" in metric:
-            value = f"{current:.2f}"
-        else:
-            value = f"{int(current):,}"
-
-        with cols[j]:
-
-            st.markdown(
-                f"""
-<div style="
-background:white;
-padding:28px;
-border-radius:18px;
-border:1px solid #E5E7EB;
-box-shadow:0 2px 8px rgba(0,0,0,0.04);
-text-align:center;
-min-height:220px;
-">
-
-<div style="
-font-size:18px;
-color:#6B7280;
-font-weight:600;
-margin-bottom:20px;
-">
-{metric}
-</div>
-
-<div style="
-font-size:42px;
-font-weight:800;
-color:#111827;
-margin-bottom:18px;
-">
-{value}
-</div>
-
-<span style="
-background:{badge_color};
-color:{text_color};
-padding:8px 14px;
-border-radius:999px;
-font-size:16px;
-font-weight:700;
-">
-{arrow} {abs(delta_pct):.2f}%
-</span>
-
-</div>
-                """,
-                unsafe_allow_html=True
-            )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
+    with cols[j]:
+      st.markdown(
+          f"""
+            <div class="metric-card">
+                <div class="metric-label">{metric}</div>
+                <div class="metric-value">{value_str}</div>
+                <span style="background:{badge_color}; color:{text_color}; padding:6px 12px; border-radius:999px; font-size:14px; font-weight:700;">
+                    {arrow} {abs(delta_pct):.2f}%
+                </span>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+  st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================================
 # TABS
 # =========================================================
-tab1, tab2, tab3 = st.tabs([
-    "📊 KPI Comparison",
-    "📈 Trend Analysis",
-    "📋 Raw Data"
-])
+tab1, tab2, tab3 = st.tabs(
+    ["📊 KPI Comparison", "📈 Trend Analysis", "📋 Raw Data"]
+)
 
 # =========================================================
-# TABLE FUNCTION
+# TAB 1: KPI COMPARISON TABLE
 # =========================================================
 def build_comparison_table(metrics, title):
+  st.markdown(
+      f"<div class='section-title'>{title}</div>", unsafe_allow_html=True
+  )
+  if not metrics:
+    st.info("Select metrics from the sidebar filter to populate this section.")
+    return
 
-    st.markdown(
-        f"<div class='section-title'>{title}</div>",
-        unsafe_allow_html=True
-    )
+  table_df = comparison_df[["Date"] + metrics].copy()
+  table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
 
-    if len(metrics) == 0:
+  st.dataframe(table_df, use_container_width=True, height=350)
 
-        st.info("Select metrics from sidebar")
 
-        return
-
-    table_df = comparison_df[
-        ["Date"] + metrics
-    ].copy()
-
-    table_df["Date"] = table_df["Date"].dt.strftime(
-        "%Y-%m-%d - %a"
-    )
-
-    current_row = table_df.iloc[0]
-
-    show_changes = st.toggle(
-        "Show % Changes",
-        value=True,
-        key=f"toggle_{title}"
-    )
-
-    col1, col2, col3 = st.columns([1,1,2])
-
-    with col1:
-
-        transpose = st.button(
-            "Transpose Table",
-            use_container_width=True,
-            key=f"transpose_{title}"
-        )
-
-    with col2:
-
-        calculate = st.button(
-            "Calculate Field",
-            use_container_width=True,
-            key=f"calc_{title}"
-        )
-
-    with col3:
-
-        st.download_button(
-            "⬇ Export CSV",
-            data=table_df.to_csv(index=False),
-            file_name=f"{title}.csv",
-            mime="text/csv",
-            use_container_width=True
-        )
-
-    # =====================================================
-    # SHOW CHANGES
-    # =====================================================
-    if show_changes:
-
-        for metric in metrics:
-
-            formatted_values = []
-
-            current_value = current_row[metric]
-
-            for idx, row in table_df.iterrows():
-
-                value = row[metric]
-
-                if idx == 0:
-
-                    formatted_values.append(
-                        f"{value:,.0f}"
-                    )
-
-                else:
-
-                    pct = 0
-
-                    if current_value != 0:
-
-                        pct = (
-                            (value - current_value)
-                            / current_value
-                        ) * 100
-
-                    arrow = (
-                        "↑"
-                        if pct > 0
-                        else "↓"
-                    )
-
-                    badge_class = (
-                        "green-badge"
-                        if pct > 0
-                        else "red-badge"
-                    )
-
-                    formatted = (
-                        f"{value:,.0f}  "
-                        f"{arrow} {abs(pct):.1f}%"
-                    )
-
-                    formatted_values.append(formatted)
-
-            table_df[metric] = formatted_values
-
-    # =====================================================
-    # AVERAGE ROW
-    # =====================================================
-    avg_row = {
-        "Date": f"Average of past {weeks_compare-1} weeks"
-    }
-
-    for metric in metrics:
-
-        avg_value = comparison_df.iloc[1:][metric].mean()
-
-        avg_row[metric] = f"{avg_value:,.2f}"
-
-    table_df.loc[len(table_df)] = avg_row
-
-    # =====================================================
-    # TRANSPOSE
-    # =====================================================
-    if transpose:
-
-        table_df = (
-            table_df
-            .set_index("Date")
-            .T
-            .reset_index()
-        )
-
-    # =====================================================
-    # CALCULATE FIELD
-    # =====================================================
-    if calculate:
-
-        try:
-
-            numeric_df = comparison_df[metrics]
-
-            table_df["Average"] = (
-                numeric_df.mean(axis=1)
-                .round(2)
-                .astype(str)
-            )
-
-        except:
-            pass
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    st.dataframe(
-        table_df,
-        use_container_width=True,
-        height=500
-    )
-
-# =========================================================
-# KPI COMPARISON TAB
-# =========================================================
 with tab1:
-
-    build_comparison_table(
-        st.session_state.selected_searches,
-        "Searches"
-    )
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    build_comparison_table(
-        st.session_state.selected_txns,
-        "Transactions"
-    )
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    build_comparison_table(
-        st.session_state.selected_kpis,
-        "KPIs"
-    )
+  build_comparison_table(
+      st.session_state.get("selected_searches", []), "Searches Data"
+  )
+  st.markdown("---")
+  build_comparison_table(
+      st.session_state.get("selected_txns", []), "Transactions Data"
+  )
+  st.markdown("---")
+  build_comparison_table(
+      st.session_state.get("selected_kpis", []), "Derived KPIs"
+  )
 
 # =========================================================
-# CHART FUNCTION
+# TAB 2: TREND ANALYSIS
 # =========================================================
-def build_chart(metrics, title):
+with tab2:
+  st.markdown(
+      "<div class='section-title'>Trend Visualizations</div>",
+      unsafe_allow_html=True,
+  )
 
-    st.markdown(
-        "<div class='card'>",
-        unsafe_allow_html=True
+  col_t1, col_t2 = st.columns([2, 1])
+  with col_t1:
+    min_d, max_d = df["Date"].min().date(), df["Date"].max().date()
+    date_range = st.slider(
+        "Select Date Range for Trends",
+        min_value=min_d,
+        max_value=max_d,
+        value=(min_d, max_d),
+    )
+  with col_t2:
+    chart_type = st.radio(
+        "Chart Style", ["Line Chart", "Bar Chart"], horizontal=True
     )
 
-    st.markdown(
-        f"<div class='section-title'>{title}</div>",
-        unsafe_allow_html=True
-    )
+  filtered_trend_df = df[
+      (df["Date"].dt.date >= date_range[0])
+      & (df["Date"].dt.date <= date_range[1])
+  ]
 
-    if len(metrics) == 0:
-
-        st.info(
-            "Select metrics from sidebar to visualize trends"
-        )
-
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        return
+  def render_chart(metrics, title):
+    st.subheader(title)
+    if not metrics:
+      st.info("Select metrics from sidebar to display chart.")
+      return
 
     fig = go.Figure()
-
     for metric in metrics:
-
-        if metric not in df.columns:
-            continue
-
-        fig.add_trace(
-            go.Scatter(
-                x=df["Date"],
-                y=df[metric],
-                mode="lines+markers",
-                name=metric
-            )
-        )
+      if metric in filtered_trend_df.columns:
+        if chart_type == "Line Chart":
+          fig.add_trace(
+              go.Scatter(
+                  x=filtered_trend_df["Date"],
+                  y=filtered_trend_df[metric],
+                  mode="lines+markers",
+                  name=metric,
+              )
+          )
+        else:
+          fig.add_trace(
+              go.Bar(
+                  x=filtered_trend_df["Date"],
+                  y=filtered_trend_df[metric],
+                  name=metric,
+              )
+          )
 
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=600,
-        legend_title="Metrics",
-        font=dict(size=16),
-        margin=dict(
-            l=20,
-            r=20,
-            t=30,
-            b=20
-        )
+        height=450,
+        margin=dict(l=20, r=20, t=30, b=20),
     )
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.plotly_chart(
-        fig,
-        use_container_width=True
-    )
-
-    st.markdown("</div>", unsafe_allow_html=True)
+  render_chart(
+      st.session_state.get("selected_searches", []), "Search Trends"
+  )
+  render_chart(
+      st.session_state.get("selected_txns", []), "Transaction Trends"
+  )
+  render_chart(st.session_state.get("selected_kpis", []), "KPI Trends")
 
 # =========================================================
-# TREND ANALYSIS TAB
-# =========================================================
-with tab2:
-
-    build_chart(
-        st.session_state.selected_searches,
-        "Search Trends"
-    )
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    build_chart(
-        st.session_state.selected_txns,
-        "Transaction Trends"
-    )
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
-
-    build_chart(
-        st.session_state.selected_kpis,
-        "KPI Trends"
-    )
-
-# =========================================================
-# RAW DATA TAB
+# TAB 3: RAW DATA & SEARCH
 # =========================================================
 with tab3:
+  st.markdown(
+      "<div class='section-title'>Raw Sheet Data</div>", unsafe_allow_html=True
+  )
+  search_text = st.text_input("Search raw dataset by keyword...")
 
-    st.markdown(
-        "<div class='section-title'>Raw Data</div>",
-        unsafe_allow_html=True
-    )
+  raw_df = df.copy()
+  if search_text:
+    raw_df = raw_df[
+        raw_df.astype(str)
+        .apply(lambda x: x.str.contains(search_text, case=False))
+        .any(axis=1)
+    ]
 
-    search_text = st.text_input(
-        "Search Data"
-    )
-
-    raw_df = df.copy()
-
-    if search_text:
-
-        raw_df = raw_df[
-            raw_df.astype(str)
-            .apply(
-                lambda x:
-                x.str.contains(
-                    search_text,
-                    case=False
-                )
-            )
-            .any(axis=1)
-        ]
-
-    st.download_button(
-        "⬇ Download Full CSV",
-        data=raw_df.to_csv(index=False),
-        file_name="bl_search_dashboard.csv",
-        mime="text/csv"
-    )
-
-    st.dataframe(
-        raw_df,
-        use_container_width=True,
-        height=700
-    )
+  st.download_button(
+      "⬇ Download Filtered CSV",
+      data=raw_df.to_csv(index=False),
+      file_name="bl_search_raw_data.csv",
+      mime="text/csv",
+  )
+  st.dataframe(raw_df, use_container_width=True, height=600)
