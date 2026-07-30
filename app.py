@@ -16,31 +16,39 @@ st.set_page_config(
 )
 
 # =========================================================
-# CUSTOM CSS FOR MATCHING TABLE, FIXED COLUMN & CHIP UI
+# CUSTOM CSS FOR TIGHTER LAYOUT & MATCHING UI
 # =========================================================
 st.markdown(
     """
 <style>
+/* REMOVE EXCESSIVE STREAMLIT TOP PADDING */
+.block-container {
+    padding-top: 1.2rem !important;
+    padding-bottom: 2rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
 /* GLOBAL FONTS - COMPACT & READABLE */
 html, body, [class*="css"] {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 15px !important;
+    font-size: 14.5px !important;
     background-color: #f8fafc;
 }
 
-/* CONTAINER CARDS */
+/* COMPACT CONTAINER CARDS */
 .main-card {
     background-color: #ffffff;
-    padding: 16px 20px;
-    border-radius: 14px;
+    padding: 12px 18px;
+    border-radius: 12px;
     border: 1px solid #e2e8f0;
-    box-shadow: 0px 3px 12px rgba(15, 23, 42, 0.03);
-    margin-bottom: 16px;
+    box-shadow: 0px 2px 8px rgba(15, 23, 42, 0.02);
+    margin-bottom: 12px;
 }
 
 /* SECTION HEADINGS */
 .row-header {
-    font-size: 16px !important;
+    font-size: 15px !important;
     font-weight: 700 !important;
     color: #0284c7 !important;
     display: flex;
@@ -50,10 +58,10 @@ html, body, [class*="css"] {
 
 /* CUSTOM STYLING FOR NATIVE STREAMLIT PILLS */
 div[data-testid="stPills"] button {
-    font-size: 13px !important;
+    font-size: 12.5px !important;
     font-weight: 600 !important;
     border-radius: 999px !important;
-    padding: 3px 12px !important;
+    padding: 2px 10px !important;
 }
 
 div[data-testid="stPills"] button[aria-selected="true"] {
@@ -71,7 +79,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     border-radius: 12px;
     border: 1px solid #e2e8f0;
     box-shadow: 0 3px 10px rgba(0,0,0,0.03);
-    margin-top: 12px;
+    margin-top: 10px;
     position: relative;
 }
 
@@ -80,7 +88,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     border-collapse: separate;
     border-spacing: 0;
     text-align: center;
-    font-size: 14px;
+    font-size: 13.5px;
     white-space: nowrap;
 }
 
@@ -88,21 +96,21 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     background-color: #f8fafc;
     color: #475569;
     font-weight: 700;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-bottom: 1.5px solid #e2e8f0;
     border-right: 1px solid #f1f5f9;
-    font-size: 13.5px !important;
-    min-width: 160px;
+    font-size: 13px !important;
+    min-width: 150px;
 }
 
 .custom-table td {
-    padding: 10px 14px;
+    padding: 8px 12px;
     border-bottom: 1px solid #f1f5f9;
     border-right: 1px solid #f1f5f9;
     color: #1e293b;
     vertical-align: middle;
     font-size: 13px !important;
-    min-width: 160px;
+    min-width: 150px;
 }
 
 /* STICKY 1ST COLUMN IMPLEMENTATION */
@@ -114,7 +122,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     background-color: #ffffff;
     border-right: 2px solid #e2e8f0 !important;
     box-shadow: 2px 0 5px rgba(0,0,0,0.03);
-    min-width: 180px;
+    min-width: 170px;
 }
 
 .custom-table th:first-child {
@@ -134,38 +142,38 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 .badge-pos {
     color: #10b981;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11.5px;
     margin-left: 4px;
 }
 
 .badge-neg {
     color: #ef4444;
     font-weight: 700;
-    font-size: 12px;
+    font-size: 11.5px;
     margin-left: 4px;
 }
 
 .badge-neutral {
     color: #94a3b8;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11.5px;
     margin-left: 4px;
 }
 
 .sub-avg-pos {
     display: block;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #10b981;
     font-weight: 600;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 .sub-avg-neg {
     display: block;
-    font-size: 11px;
+    font-size: 10.5px;
     color: #ef4444;
     font-weight: 600;
-    margin-top: 2px;
+    margin-top: 1px;
 }
 
 /* SUMMARY ROWS */
@@ -183,9 +191,9 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 
 /* MODE SELECTION SEGMENTED CONTROL TABS */
 div[data-testid="stSegmentedControl"] button {
-    font-size: 15px !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
-    padding: 8px 24px !important;
+    padding: 6px 20px !important;
 }
 
 </style>
@@ -584,7 +592,7 @@ def render_exclusion_popovers(
 
 
 # =========================================================
-# TOP LEVEL MODE SELECTION SWITCH (REMOVED CUSTOM COMPARE)
+# TOP LEVEL MODE SELECTION SWITCH
 # =========================================================
 selected_mode = st.segmented_control(
     "Comparison Mode",
@@ -611,9 +619,11 @@ if selected_mode == "Previous Week Same Day":
       selected_date = st.date_input(
           "Select Date",
           value=st.session_state["pwsd_selected_date"],
-          key="pwsd_date",
+          key="pwsd_date_picker_widget",
       )
-      st.session_state["pwsd_selected_date"] = selected_date
+      if selected_date != st.session_state["pwsd_selected_date"]:
+        st.session_state["pwsd_selected_date"] = selected_date
+        st.rerun()
 
     with c2:
       weeks_compare = st.selectbox(
@@ -811,7 +821,7 @@ with st.container():
       st.rerun()
 
   st.markdown(
-      "<hr style='margin: 12px 0 16px 0; border-color: #f1f5f9;'>",
+      "<hr style='margin: 10px 0 14px 0; border-color: #f1f5f9;'>",
       unsafe_allow_html=True,
   )
 
@@ -866,7 +876,7 @@ with st.container():
           st.rerun()
 
     st.markdown(
-        "<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True
+        "<div style='margin-bottom: 4px;'></div>", unsafe_allow_html=True
     )
 
   st.markdown("</div>", unsafe_allow_html=True)
@@ -900,37 +910,37 @@ with tab1:
   elif active_mode_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
-    # 1. FIXED WORKING DATE SWITCHER BAR
+    # CLEAN DATE SWITCHER BUTTONS
     if selected_mode == "Previous Week Same Day":
       nav_c1, nav_c2, nav_c3 = st.columns([1.5, 2, 1.5])
       cur_dt = pd.to_datetime(st.session_state["pwsd_selected_date"])
 
       with nav_c1:
         if st.button("‹ Previous Date", use_container_width=True):
-          prev_d = (cur_dt - timedelta(days=1)).date()
-          st.session_state["pwsd_selected_date"] = prev_d
-          st.session_state["pwsd_date"] = prev_d
+          st.session_state["pwsd_selected_date"] = (
+              cur_dt - timedelta(days=1)
+          ).date()
           st.rerun()
 
       with nav_c2:
         st.markdown(
-            f"<div style='text-align:center; padding: 4px 0;'><b"
-            " style='font-size:17px;"
+            f"<div style='text-align:center; padding: 2px 0;'><b"
+            " style='font-size:16px;"
             f" color:#0f172a;'>{cur_dt.strftime('%d %b %Y')}</b><br><span"
             " style='color:#64748b;"
-            f" font-size:13px;'>{cur_dt.strftime('%A')}</span></div>",
+            f" font-size:12.5px;'>{cur_dt.strftime('%A')}</span></div>",
             unsafe_allow_html=True,
         )
 
       with nav_c3:
         if st.button("Next Date ›", use_container_width=True):
-          nxt_d = (cur_dt + timedelta(days=1)).date()
-          st.session_state["pwsd_selected_date"] = nxt_d
-          st.session_state["pwsd_date"] = nxt_d
+          st.session_state["pwsd_selected_date"] = (
+              cur_dt + timedelta(days=1)
+          ).date()
           st.rerun()
 
       st.markdown(
-          "<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True
+          "<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True
       )
 
     base_df = active_mode_df[["Date"] + active_selected_kpis].copy()
@@ -1155,7 +1165,7 @@ with tab2:
   st.markdown("## 📈 Trend Visualizations")
 
   if not active_selected_kpis:
-    st.info("💡 Select KPI chips above to display the analysis table.")
+    st.info("💡 Please select KPI chips above to display the analysis table.")
   elif trend_df.empty:
     st.warning("⚠️ No data available for selected mode/dates.")
   else:
@@ -1196,15 +1206,15 @@ with tab2:
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=480,
-        font=dict(size=14),
-        margin=dict(l=20, r=20, t=30, b=20),
+        height=440,
+        font=dict(size=13),
+        margin=dict(l=20, r=20, t=20, b=20),
         xaxis=dict(type="category"),
         yaxis=dict(rangemode="tozero"),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("<hr style='margin: 24px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual Breakdown Trends")
 
     theme_colors = [
@@ -1267,9 +1277,9 @@ with tab2:
           fig_ind.update_layout(
               template="plotly_white",
               hovermode="x unified",
-              height=320,
+              height=300,
               font=dict(size=12),
-              margin=dict(l=20, r=20, t=20, b=20),
+              margin=dict(l=20, r=20, t=15, b=20),
               showlegend=False,
               xaxis=dict(type="category", gridcolor="#f1f5f9"),
               yaxis=yaxis_dict,
