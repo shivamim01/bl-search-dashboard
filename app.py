@@ -1,6 +1,5 @@
 from datetime import timedelta
 import io
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import requests
@@ -409,8 +408,29 @@ for cat, data in KPI_GROUPS.items():
   if key not in st.session_state:
     st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
-if "custom_calc_kpis" not in st.session_state:
-  st.session_state["custom_calc_kpis"] = []
+if "custom_kpis_dict" not in st.session_state:
+  st.session_state["custom_kpis_dict"] = {}
+
+# Helper Function: Reset KPIs to Strict Defaults (Requirement 1)
+def reset_to_strict_defaults():
+  for cat, data in KPI_GROUPS.items():
+    st.session_state[f"selected_{cat}"] = [
+        d for d in data["defaults"] if d in df.columns
+    ]
+  st.session_state["custom_kpis_dict"] = {}
+
+# Apply Custom Calculated Fields directly onto df
+for c_name, c_info in st.session_state["custom_kpis_dict"].items():
+  a_col, op, b_col = c_info["a"], c_info["op"], c_info["b"]
+  if a_col in df.columns and b_col in df.columns:
+    if op == "÷ (Ratio A/B)":
+      df[c_name] = (df[a_col] / df[b_col].replace(0, pd.NA)).fillna(0) * 100
+    elif op == "× (Multiply A*B)":
+      df[c_name] = df[a_col] * df[b_col]
+    elif op == "+ (Add A+B)":
+      df[c_name] = df[a_col] + df[b_col]
+    elif op == "- (Subtract A-B)":
+      df[c_name] = df[a_col] - df[b_col]
 
 # =========================================================
 # DASHBOARD TITLE
@@ -493,11 +513,8 @@ with st.container():
       st.rerun()
 
   with hdr4:
-    if st.button("🔄 Reset", key="reset_top", use_container_width=True):
-      for cat, data in KPI_GROUPS.items():
-        st.session_state[f"selected_{cat}"] = [
-            d for d in data["defaults"] if d in df.columns
-        ]
+    if st.button("🔄 Reset Defaults", key="reset_top", use_container_width=True):
+      reset_to_strict_defaults()
       st.rerun()
 
   st.markdown("<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>", unsafe_allow_html=True)
@@ -561,10 +578,10 @@ for cat in KPI_GROUPS.keys():
     if metric not in active_selected_kpis:
       active_selected_kpis.append(metric)
 
-# Add custom calculated fields if active
-for calc_metric in st.session_state["custom_calc_kpis"]:
-  if calc_metric not in active_selected_kpis:
-    active_selected_kpis.append(calc_metric)
+# Append custom calculated fields to active selected list
+for c_name in st.session_state["custom_kpis_dict"].keys():
+  if c_name not in active_selected_kpis:
+    active_selected_kpis.append(c_name)
 
 # =========================================================
 # DASHBOARD TABS
@@ -582,8 +599,8 @@ with tab1:
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
   else:
-    # TOOLBAR MATCHING SCREENSHOT
-    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.5, 1.5])
+    # TOOLBAR MATCHING SCREENSHOT 2
+    tb1, tb2, tb3, tb4, tb5 = st.columns([1.5, 1.2, 1.2, 1.8, 1.2])
 
     with tb1:
       transpose = st.toggle("⇄ Transpose Table", value=False)
@@ -594,28 +611,34 @@ with tab1:
         st.rerun()
 
     with tb3:
+      # Requirement 1: Reset KPIs strictly removes all non-defaults
       if st.button("⏮ Reset KPIs", use_container_width=True):
-        for cat, data in KPI_GROUPS.items():
-          st.session_state[f"selected_{cat}"] = [
-              d for d in data["defaults"] if d in df.columns
-          ]
-        st.session_state["custom_calc_kpis"] = []
+        reset_to_strict_defaults()
         st.rerun()
 
     with tb4:
-      new_calc = st.selectbox(
-          "➕ Add Calc KPI",
-          ["Select Formula...", "Txn / Searcher %", "NI / Searcher %", "Zero Result %"],
-          label_visibility="collapsed"
-      )
-      if new_calc != "Select Formula...":
-        if new_calc == "Txn / Searcher %" and "Transactor/Searcher" in df.columns:
-          if "Transactor/Searcher" not in st.session_state["custom_calc_kpis"]:
-            st.session_state["custom_calc_kpis"].append("Transactor/Searcher")
+      # Requirement 2: Popover Modal Matching Screenshot 2
+      with st.popover("➕ Add Calc KPI", use_container_width=True):
+        st.caption("Create a dynamic metric from existing data.")
+        
+        all_numeric_cols = [c for c in df.columns if c != "Date"]
+        
+        base_metric = st.selectbox("Base Metric (A)", all_numeric_cols, key="calc_base_m")
+        op_selected = st.selectbox("Operation", ["÷ (Ratio A/B)", "× (Multiply A*B)", "+ (Add A+B)", "- (Subtract A-B)"], key="calc_op")
+        sec_metric = st.selectbox("Secondary Metric (B)", all_numeric_cols, key="calc_sec_m")
+        new_name = st.text_input("New Metric Name", value="Custom Ratio", key="calc_name_input").strip()
+
+        if st.button("Create Custom KPI", use_container_width=True):
+          if new_name:
+            st.session_state["custom_kpis_dict"][new_name] = {
+                "a": base_metric,
+                "op": op_selected,
+                "b": sec_metric
+            }
             st.rerun()
 
     with tb5:
-      st.button("📝 Add Comment", use_container_width=True)
+      st.button("📝 Comment", use_container_width=True)
 
     # BUILD CUSTOM HTML PERFORMANCE TABLE
     base_df = comparison_df[["Date"] + active_selected_kpis].copy()
@@ -623,17 +646,15 @@ with tab1:
     # Calculate historical averages and best-ever values
     avg_values = base_df[active_selected_kpis].mean()
     
-    # Best Ever Daily scan
     best_values = {}
     for col in active_selected_kpis:
       if "zero" in col.lower() or "position" in col.lower():
-        best_values[col] = df[col].min()  # Lower is better for zero-result/position
+        best_values[col] = df[col].min()
       else:
-        best_values[col] = df[col].max()  # Higher is better
+        best_values[col] = df[col].max()
 
-    # Formatter helper
     def fmt_val(val, metric):
-      if "%" in metric or "Txn/100" in metric or "Transactor/" in metric or "NI/TXN" in metric:
+      if "%" in metric or "Txn/100" in metric or "Transactor/" in metric or "Ratio" in metric or "NI/TXN" in metric:
         return f"{val:.1f}%"
       elif val > 1000:
         return f"{val:,.0f}"
@@ -652,7 +673,6 @@ with tab1:
 
       base_row = base_df.iloc[0] if len(base_df) > 0 else None
 
-      # Render Data Rows
       for idx, row in base_df.iterrows():
         date_str = row["Date"].strftime("%Y-%m-%d - %a")
         html_code += f"<tr><td style='font-weight:700;'>{date_str}</td>"
@@ -662,33 +682,18 @@ with tab1:
           formatted = fmt_val(val, metric)
 
           if idx == base_df.index[0]:
-            # Base Date Row - plain number
             html_code += f"<td>{formatted}</td>"
           else:
-            # Comparison Row with % Change
             base_val = base_row[metric] if base_row is not None else 0
-            if base_val != 0:
-              pct_change = ((val - base_val) / base_val) * 100
-            else:
-              pct_change = 0
+            pct_change = (((val - base_val) / base_val) * 100) if base_val != 0 else 0
 
-            # Green for positive, red for negative
-            if pct_change > 0:
-              badge = f"<span class='badge-pos'>+{pct_change:.1f}%</span>"
-            elif pct_change < 0:
-              badge = f"<span class='badge-neg'>{pct_change:.1f}%</span>"
-            else:
-              badge = "<span class='badge-neutral'>+0.0%</span>"
+            badge_cls = "badge-pos" if pct_change > 0 else ("badge-neg" if pct_change < 0 else "badge-neutral")
+            badge = f"<span class='{badge_cls}'>{pct_change:+.1f}%</span>"
 
-            # Add "vs Avg" sub-badge for the last comparison row
             sub_avg_html = ""
             if idx == base_df.index[-1]:
               avg_v = avg_values[metric]
-              if avg_v != 0:
-                vs_avg_pct = ((val - avg_v) / avg_v) * 100
-              else:
-                vs_avg_pct = 0
-              
+              vs_avg_pct = (((val - avg_v) / avg_v) * 100) if avg_v != 0 else 0
               sub_cls = "sub-avg-pos" if vs_avg_pct >= 0 else "sub-avg-neg"
               sub_avg_html = f"<span class='{sub_cls}'>vs Avg: {vs_avg_pct:+.1f}%</span>"
 
