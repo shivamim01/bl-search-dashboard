@@ -9,7 +9,7 @@ import streamlit as st
 # PAGE CONFIG
 # =========================================================
 st.set_page_config(
-    page_title="BL Search Analytics",
+    page_title="BL Search RCA DashBoard",
     page_icon="⚡",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -21,39 +21,39 @@ st.set_page_config(
 st.markdown(
     """
 <style>
-/* GLOBAL FONTS */
+/* GLOBAL FONTS - PROPORTIONALLY REDUCED */
 html, body, [class*="css"] {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 19px !important;
+    font-size: 16px !important;
     background-color: #f8fafc;
 }
 
 /* CONTAINER CARDS */
 .main-card {
     background-color: #ffffff;
-    padding: 24px 30px;
-    border-radius: 18px;
+    padding: 20px 24px;
+    border-radius: 16px;
     border: 1px solid #e2e8f0;
     box-shadow: 0px 4px 16px rgba(15, 23, 42, 0.03);
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 /* SECTION HEADINGS */
 .row-header {
-    font-size: 22px !important;
+    font-size: 18px !important;
     font-weight: 700 !important;
     color: #0284c7 !important;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 /* CUSTOM STYLING FOR NATIVE STREAMLIT PILLS */
 div[data-testid="stPills"] button {
-    font-size: 16px !important;
+    font-size: 14px !important;
     font-weight: 600 !important;
     border-radius: 999px !important;
-    padding: 6px 18px !important;
+    padding: 4px 14px !important;
 }
 
 div[data-testid="stPills"] button[aria-selected="true"] {
@@ -78,20 +78,20 @@ div[data-testid="stPills"] button[aria-selected="true"] {
     width: 100%;
     border-collapse: collapse;
     text-align: center;
-    font-size: 18px;
+    font-size: 15px;
 }
 
 .custom-table th {
     background-color: #f8fafc;
     color: #475569;
     font-weight: 700;
-    padding: 18px 16px;
+    padding: 14px 12px;
     border-bottom: 1.5px solid #e2e8f0;
     border-right: 1px solid #f1f5f9;
 }
 
 .custom-table td {
-    padding: 16px 14px;
+    padding: 12px 10px;
     border-bottom: 1px solid #f1f5f9;
     border-right: 1px solid #f1f5f9;
     color: #1e293b;
@@ -106,27 +106,27 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 .badge-pos {
     color: #10b981;
     font-weight: 700;
-    font-size: 16px;
-    margin-left: 6px;
+    font-size: 13px;
+    margin-left: 4px;
 }
 
 .badge-neg {
     color: #ef4444;
     font-weight: 700;
-    font-size: 16px;
-    margin-left: 6px;
+    font-size: 13px;
+    margin-left: 4px;
 }
 
 .badge-neutral {
     color: #94a3b8;
     font-weight: 600;
-    font-size: 16px;
-    margin-left: 6px;
+    font-size: 13px;
+    margin-left: 4px;
 }
 
 .sub-avg-pos {
     display: block;
-    font-size: 14px;
+    font-size: 12px;
     color: #10b981;
     font-weight: 600;
     margin-top: 2px;
@@ -134,7 +134,7 @@ div[data-testid="stPills"] button[aria-selected="true"] {
 
 .sub-avg-neg {
     display: block;
-    font-size: 14px;
+    font-size: 12px;
     color: #ef4444;
     font-weight: 600;
     margin-top: 2px;
@@ -418,12 +418,11 @@ if "excluded_dates" not in st.session_state:
   st.session_state["excluded_dates"] = []
 
 
-# FIXED: Explicitly sync st.pills widget keys when resetting
 def reset_to_strict_defaults():
   for cat, data in KPI_GROUPS.items():
     defaults = [d for d in data["defaults"] if d in df.columns]
     st.session_state[f"selected_{cat}"] = defaults
-    st.session_state[f"pills_{cat}"] = defaults  # Synchronize visual widget state
+    st.session_state[f"pills_{cat}"] = defaults
   st.session_state["custom_kpis_dict"] = {}
 
 
@@ -441,9 +440,9 @@ for c_name, c_info in st.session_state["custom_kpis_dict"].items():
       df[c_name] = df[a_col] - df[b_col]
 
 # =========================================================
-# DASHBOARD TITLE
+# DASHBOARD TITLE (UPDATED)
 # =========================================================
-st.title("⚡ Dynamic Performance Analytics")
+st.title("⚡ BL Search RCA DashBoard")
 
 # =========================================================
 # TOP CONTROLS ROW
@@ -575,7 +574,7 @@ with st.container():
       st.rerun()
 
   st.markdown(
-      "<hr style='margin: 16px 0 24px 0; border-color: #f1f5f9;'>",
+      "<hr style='margin: 14px 0 20px 0; border-color: #f1f5f9;'>",
       unsafe_allow_html=True,
   )
 
@@ -596,7 +595,8 @@ with st.container():
     limit = len(available_metrics) if st.session_state[show_more_key] else 5
     visible_metrics = available_metrics[:limit]
 
-    col_label, col_chips, col_more = st.columns([2.2, 7, 1])
+    # REDUCED HORIZONTAL SPACING: Title col changed from 2.2 to 1.5
+    col_label, col_chips, col_more = st.columns([1.5, 7.7, 0.8])
 
     with col_label:
       st.markdown(
@@ -637,7 +637,7 @@ with st.container():
           st.rerun()
 
     st.markdown(
-        "<div style='margin-bottom: 12px;'></div>", unsafe_allow_html=True
+        "<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True
     )
 
   st.markdown("</div>", unsafe_allow_html=True)
@@ -664,7 +664,7 @@ tab1, tab2, tab3 = st.tabs(
 # TAB 1: DYNAMIC PERFORMANCE ANALYSIS TABLE
 # =========================================================
 with tab1:
-  st.markdown("## ⚡ Dynamic Performance Analysis Table")
+  st.markdown("## ⚡ BL Search RCA DashBoard")
 
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
@@ -933,12 +933,12 @@ with tab2:
         template="plotly_white",
         hovermode="x unified",
         height=500,
-        font=dict(size=18),
+        font=dict(size=16),
         margin=dict(l=20, r=20, t=30, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown("<hr style='margin: 32px 0;'>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin: 28px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual KPI Trends")
 
     ind_cols = st.columns(2)
@@ -955,7 +955,7 @@ with tab2:
                     y=filtered_trend_df[metric],
                     mode="lines+markers",
                     name=metric,
-                    line=dict(color="#0284c7", width=3),
+                    line=dict(color="#0284c7", width=2.5),
                 )
             )
           else:
@@ -971,8 +971,8 @@ with tab2:
           fig_ind.update_layout(
               template="plotly_white",
               hovermode="x unified",
-              height=380,
-              font=dict(size=16),
+              height=360,
+              font=dict(size=14),
               margin=dict(l=20, r=20, t=30, b=20),
               showlegend=False,
           )
