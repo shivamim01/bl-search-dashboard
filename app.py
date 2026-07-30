@@ -456,7 +456,7 @@ for cat, data in KPI_GROUPS.items():
 st.title("⚡ BL Search RCA DashBoard")
 
 # =========================================================
-# TOP LEVEL MODE SELECTION TABS (SCREENSHOT 1, 2, 3)
+# TOP LEVEL MODE SELECTION TABS
 # =========================================================
 mode_tabs = st.tabs([
     "Previous Week Same Day",
@@ -469,8 +469,8 @@ max_data_date = (
     df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
 )
 
-# Helper function for Exclude Days & Dates popovers
-def render_exclusion_popovers():
+# FIXED: Helper function uses unique key_prefix to avoid StreamlitDuplicateElementKey
+def render_exclusion_popovers(key_prefix: str):
   c3, c4 = st.columns([1, 1])
   with c3:
     day_count = len(st.session_state["excluded_days"])
@@ -492,7 +492,7 @@ def render_exclusion_popovers():
           "Select Days",
           days_list,
           default=st.session_state["excluded_days"],
-          key="pop_sel_days",
+          key=f"{key_prefix}_pop_sel_days",
       )
       if sel_days != st.session_state["excluded_days"]:
         st.session_state["excluded_days"] = sel_days
@@ -508,7 +508,7 @@ def render_exclusion_popovers():
       sel_dates = st.date_input(
           "Select Dates",
           value=st.session_state["excluded_dates"],
-          key="pop_sel_dates",
+          key=f"{key_prefix}_pop_sel_dates",
       )
       if isinstance(sel_dates, (list, tuple)):
         st.session_state["excluded_dates"] = list(sel_dates)
@@ -547,11 +547,10 @@ with mode_tabs[0]:
 
     with c3_4:
       st.markdown("<br>", unsafe_allow_html=True)
-      render_exclusion_popovers()
+      render_exclusion_popovers(key_prefix="pwsd")
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-  # Generate Mode 1 Comparison DF
   s_date = pd.to_datetime(selected_date)
   comp_dates = [s_date - timedelta(days=7 * i) for i in range(weeks_num)]
   active_mode_df = df[
@@ -567,7 +566,6 @@ with mode_tabs[1]:
     dc1, dc2 = st.columns([2.5, 3])
 
     with dc1:
-      # Calculate default date range based on quick filter selection
       q_val = st.session_state["dr_quick_filter"]
       days_back = (
           7
@@ -602,10 +600,9 @@ with mode_tabs[1]:
             st.rerun()
 
     st.markdown("<br>", unsafe_allow_html=True)
-    render_exclusion_popovers()
+    render_exclusion_popovers(key_prefix="dr")
     st.markdown("</div>", unsafe_allow_html=True)
 
-  # Generate Mode 2 Comparison DF
   if isinstance(selected_dr, (list, tuple)) and len(selected_dr) == 2:
     start_d, end_d = selected_dr[0], selected_dr[1]
   else:
@@ -642,20 +639,17 @@ with mode_tabs[2]:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-  # Group by Sunday-Saturday weeks
   df_wow = df.copy()
   df_wow["Week_Start"] = df_wow["Date"].apply(
       lambda d: d - timedelta(days=(d.weekday() + 1) % 7)
   )
 
-  # Compute weekly averages for numeric columns
   numeric_cols = [c for c in df_wow.columns if c not in ["Date", "Week_Start"]]
   weekly_avg_df = (
       df_wow.groupby("Week_Start")[numeric_cols].mean().reset_index()
   )
   weekly_avg_df = weekly_avg_df.rename(columns={"Week_Start": "Date"})
 
-  # Select top N recent weeks
   active_mode_df = weekly_avg_df.sort_values(
       "Date", ascending=False
   ).head(wow_num)
@@ -667,7 +661,7 @@ with mode_tabs[3]:
   st.info("💡 Select custom dates or dimensions for tailored comparisons.")
 
 
-# APPLY GLOBAL DAY AND DATE EXCLUSIONS TO ACTIVE MODE DATAFRAME
+# APPLY GLOBAL DAY AND DATE EXCLUSIONS
 if st.session_state["excluded_days"] and not active_mode_df.empty:
   active_mode_df = active_mode_df[
       ~active_mode_df["Date"]
@@ -809,7 +803,7 @@ tab1, tab2, tab3 = st.tabs(
 # TAB 1: DYNAMIC PERFORMANCE ANALYSIS TABLE
 # =========================================================
 with tab1:
-  st.markdown("## ⚡ Dynamic Performance Analysis Table")
+  st.markdown("## ⚡ BL Search RCA DashBoard")
 
   if not active_selected_kpis:
     st.info("💡 Please select KPI chips above to display the analysis table.")
