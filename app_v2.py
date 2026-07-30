@@ -426,8 +426,12 @@ if "excluded_days" not in st.session_state:
 if "excluded_dates" not in st.session_state:
   st.session_state["excluded_dates"] = []
 
-if "dr_quick_filter" not in st.session_state:
-  st.session_state["dr_quick_filter"] = "Past Week"
+if "dr_start_date" not in st.session_state:
+  max_data_date = df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
+  st.session_state["dr_start_date"] = max_data_date - timedelta(days=7)
+
+if "dr_end_date" not in st.session_state:
+  st.session_state["dr_end_date"] = df["Date"].max().date() if not df.empty else pd.Timestamp.now().date()
 
 
 def reset_to_strict_defaults():
@@ -467,7 +471,8 @@ max_data_date = (
 )
 
 
-def render_exclusion_popovers(key_prefix: str):
+# Helper Function: Render Popovers with Checkboxes matching SS2
+def render_exclusion_popovers(key_prefix: str, available_dates_df: pd.DataFrame):
   c3, c4 = st.columns([1, 1])
   with c3:
     day_count = len(st.session_state["excluded_days"])
@@ -501,16 +506,38 @@ def render_exclusion_popovers(key_prefix: str):
         f"Exclude Dates ({date_count})" if date_count > 0 else "Exclude Dates"
     )
     with st.popover(pop_dates_label, use_container_width=True):
-      st.caption("Select specific dates to exclude:")
-      sel_dates = st.date_input(
-          "Select Dates",
-          value=st.session_state["excluded_dates"],
-          key=f"{key_prefix}_pop_sel_dates",
-      )
-      if isinstance(sel_dates, (list, tuple)):
-        st.session_state["excluded_dates"] = list(sel_dates)
-      elif sel_dates:
-        st.session_state["excluded_dates"] = [sel_dates]
+      st.markdown("#### Exclude dates from average")
+
+      # Extract unique dates from current active date range
+      if not available_dates_df.empty:
+        range_dates = (
+            available_dates_df["Date"]
+            .dt.strftime("%Y-%m-%d - %a")
+            .unique()
+            .tolist()
+        )
+      else:
+        range_dates = []
+
+      if not range_dates:
+        st.info("No dates available in current range.")
+      else:
+        for date_item in range_dates:
+          d_val = date_item.split(" - ")[0]
+          is_checked = d_val in st.session_state["excluded_dates"]
+
+          chk = st.checkbox(
+              date_item,
+              value=is_checked,
+              key=f"{key_prefix}_chk_{d_val}",
+          )
+
+          if chk and d_val not in st.session_state["excluded_dates"]:
+            st.session_state["excluded_dates"].append(d_val)
+            st.rerun()
+          elif not chk and d_val in st.session_state["excluded_dates"]:
+            st.session_state["excluded_dates"].remove(d_val)
+            st.rerun()
 
 
 # =========================================================
@@ -534,6 +561,11 @@ mode_view_type = "pwsd"
 
 # 1. MODE: PREVIOUS WEEK SAME DAY
 if selected_mode == "Previous Week Same Day":
+  s_date_init = pd.to_datetime(max_data_date)
+  weeks_num_init = 4
+  comp_dates_init = [s_date_init - timedelta(days=7 * i) for i in range(weeks_num_init)]
+  unfiltered_pwsd_df = df[df["Date"].dt.date.isin([d.date() for d in comp_dates_init])]
+
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     c1, c2, c3_4 = st.columns([1.5, 1.5, 2.4])
@@ -561,74 +593,60 @@ if selected_mode == "Previous Week Same Day":
       )
       weeks_num = int(weeks_compare.split()[0])
 
+    s_date = pd.to_datetime(selected_date)
+    comp_dates = [s_date - timedelta(days=7 * i) for i in range(weeks_num)]
+    unfiltered_pwsd_df = df[df["Date"].dt.date.isin([d.date() for d in comp_dates])]
+
     with c3_4:
       st.markdown("<br>", unsafe_allow_html=True)
-      render_exclusion_popovers(key_prefix="pwsd")
+      render_exclusion_popovers(key_prefix="pwsd", available_dates_df=unfiltered_pwsd_df)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-  s_date = pd.to_datetime(selected_date)
-  comp_dates = [s_date - timedelta(days=7 * i) for i in range(weeks_num)]
-  active_mode_df = df[
-      df["Date"].dt.date.isin([d.date() for d in comp_dates])
-  ].sort_values("Date", ascending=False)
+  active_mode_df = unfiltered_pwsd_df.sort_values("Date", ascending=False)
   mode_view_type = "pwsd"
 
-# 2. MODE: DATE RANGE COMPARISON
+# 2. MODE: DATE RANGE COMPARISON (FIXED QUICK FILTERS)
 elif selected_mode == "Date Range Comparison":
   with st.container():
     st.markdown("<div class='main-card'>", unsafe_allow_html=True)
     dc1, dc2 = st.columns([2.5, 3])
 
-    with dc1:
-      q_val = st.session_state["dr_quick_filter"]
-      days_back = (
-          7
-          if q_val == "Past Week"
-          else (
-              14
-              if q_val == "2 Weeks"
-              else (21 if q_val == "3 Weeks" else 28)
-          )
-      )
-      default_start = max_data_date - timedelta(days=days_back)
-
-      selected_dr = st.date_input(
-          "Date Range",
-          value=(default_start, max_data_date),
-          key="dr_picker",
-      )
-
     with dc2:
       st.markdown("**Quick Filters**")
       q_cols = st.columns(4)
-      for idx, q_label in enumerate(
-          ["Past Week", "2 Weeks", "3 Weeks", "4 Weeks"]
-      ):
+      quick_filter_map = {
+          "Past Week": 7,
+          "2 Weeks": 14,
+          "3 Weeks": 21,
+          "4 Weeks": 28,
+      }
+
+      for idx, (q_label, q_days) in enumerate(quick_filter_map.items()):
         with q_cols[idx]:
-          if st.button(
-              q_label,
-              key=f"qf_btn_{q_label}",
-              use_container_width=True,
-          ):
-            st.session_state["dr_quick_filter"] = q_label
+          if st.button(q_label, key=f"qf_btn_{q_label}", use_container_width=True):
+            st.session_state["dr_start_date"] = max_data_date - timedelta(days=q_days)
+            st.session_state["dr_end_date"] = max_data_date
             st.rerun()
 
+    with dc1:
+      selected_dr = st.date_input(
+          "Date Range",
+          value=(st.session_state["dr_start_date"], st.session_state["dr_end_date"]),
+          key="dr_picker",
+      )
+
+      if isinstance(selected_dr, (list, tuple)) and len(selected_dr) == 2:
+        st.session_state["dr_start_date"], st.session_state["dr_end_date"] = selected_dr[0], selected_dr[1]
+
+    start_d, end_d = st.session_state["dr_start_date"], st.session_state["dr_end_date"]
+    unfiltered_dr_df = df[(df["Date"].dt.date >= start_d) & (df["Date"].dt.date <= end_d)]
+
     st.markdown("<br>", unsafe_allow_html=True)
-    render_exclusion_popovers(key_prefix="dr")
+    render_exclusion_popovers(key_prefix="dr", available_dates_df=unfiltered_dr_df)
     st.markdown("</div>", unsafe_allow_html=True)
 
-  if isinstance(selected_dr, (list, tuple)) and len(selected_dr) == 2:
-    start_d, end_d = selected_dr[0], selected_dr[1]
-  else:
-    start_d, end_d = (
-        selected_dr,
-        selected_dr if not isinstance(selected_dr, (list, tuple)) else max_data_date,
-    )
-
-  active_mode_df = df[
-      (df["Date"].dt.date >= start_d) & (df["Date"].dt.date <= end_d)
-  ].sort_values("Date", ascending=True)
+  active_mode_df = unfiltered_dr_df.sort_values("Date", ascending=True)
   mode_view_type = "date_range"
 
 # 3. MODE: WEEK ON WEEK COMPARISON
@@ -1027,7 +1045,7 @@ with tab1:
     st.markdown(html_code, unsafe_allow_html=True)
 
 # =========================================================
-# TAB 2: TREND ANALYSIS (FIXED PLOTLY RGBA COLOR VALIDATION)
+# TAB 2: TREND ANALYSIS
 # =========================================================
 with tab2:
   st.markdown("## 📈 Trend Visualizations")
@@ -1085,7 +1103,6 @@ with tab2:
     st.markdown("<hr style='margin: 24px 0;'>", unsafe_allow_html=True)
     st.markdown("### Individual Breakdown Trends")
 
-    # FIXED: Valid rgba(...) strings for Plotly compatibility
     theme_colors = [
         {"line": "#0284c7", "fill": "rgba(2, 132, 197, 0.12)"},
         {"line": "#7c3aed", "fill": "rgba(124, 58, 237, 0.12)"},
