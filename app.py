@@ -1,7 +1,8 @@
 from datetime import timedelta
+import io
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import requests
 import streamlit as st
 
 # =========================================================
@@ -11,83 +12,58 @@ st.set_page_config(
     page_title="BL Search Dashboard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",  # Collapsed since filters are now on top
 )
 
 # =========================================================
-# CUSTOM CSS
+# CUSTOM CSS FOR CHIP FILTER UI
 # =========================================================
 st.markdown(
     """
 <style>
-
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
-    font-size: 18px !important;
 }
 
-/* MAIN TITLES */
-h1 { font-size: 44px !important; font-weight: 800 !important; }
-h2 { font-size: 32px !important; font-weight: 700 !important; }
-h3 { font-size: 24px !important; font-weight: 700 !important; }
-
-/* SIDEBAR */
-section[data-testid="stSidebar"] {
-    width: 380px !important;
-    background: #ffffff;
-    border-right: 1px solid #eef2f7;
-}
-
-section[data-testid="stSidebar"] label {
-    font-size: 16px !important;
-    font-weight: 600 !important;
-}
-
-/* METRIC CARDS */
-.metric-card {
-    background: white;
-    padding: 24px;
-    border-radius: 18px;
-    border: 1px solid #E5E7EB;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    text-align: center;
-    min-height: 200px;
-}
-
-.metric-label {
-    font-size: 16px;
-    color: #6B7280;
-    font-weight: 600;
-    margin-bottom: 12px;
-}
-
-.metric-value {
-    font-size: 38px;
-    font-weight: 800;
-    color: #111827;
-    margin-bottom: 12px;
+/* SECTION CARD FOR FILTERS */
+.filter-card {
+    background-color: #ffffff;
+    padding: 20px 24px;
+    border-radius: 16px;
+    border: 1px solid #eef2f7;
+    box-shadow: 0px 4px 12px rgba(15, 23, 42, 0.04);
+    margin-bottom: 24px;
 }
 
 .section-title {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 700;
     margin-bottom: 16px;
     color: #111827;
 }
 
-.small-subtitle {
-    color: #6b7280;
-    font-size: 18px;
-    margin-bottom: 20px;
+/* EXPANDER HEADER STYLING */
+.stExpander {
+    border: 1px solid #eef2f7 !important;
+    border-radius: 12px !important;
+    margin-bottom: 8px !important;
+    background: #f8fafc;
+}
+
+/* MULTISELECT PILL CHIPS */
+div[data-baseweb="select"] span[data-baseweb="tag"] {
+    background-color: #eff6ff !important;
+    border: 1px solid #bfdbfe !important;
+    border-radius: 20px !important;
+    color: #1d4ed8 !important;
+    font-weight: 600 !important;
+    padding: 4px 10px !important;
 }
 
 </style>
 """,
     unsafe_allow_html=True,
 )
-
-import io
-import requests
 
 # =========================================================
 # DATA LOAD & CLEANING
@@ -97,7 +73,6 @@ csv_url = "https://docs.google.com/spreadsheets/d/1z1wOGh4fehBVxDL4JXO1p2p3uZG77
 
 @st.cache_data(ttl=300)
 def load_data():
-  # Request with standard browser User-Agent to prevent Google 403 HTTP errors
   headers = {
       "User-Agent": (
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -106,10 +81,7 @@ def load_data():
   response = requests.get(csv_url, headers=headers)
   response.raise_for_status()
 
-  # Load raw text into pandas
   df = pd.read_csv(io.StringIO(response.text))
-
-  # Clean header column names
   df.columns = df.columns.str.strip()
 
   # Filter out summary/average rows
@@ -132,7 +104,7 @@ def load_data():
           .str.replace("$", "", regex=False)
       )
       s = s.str.replace("%", "", regex=False).replace(
-          ["None", "#REF!", "#N/A", "#VALUE!", "nan", "None", ""], "0"
+          ["None", "#REF!", "#N/A", "#VALUE!", "nan", ""], "0"
       )
       df[col] = pd.to_numeric(s, errors="coerce").fillna(0)
 
@@ -143,56 +115,171 @@ def load_data():
 df = load_data()
 
 # =========================================================
-# DYNAMIC KPI & COLUMN CATEGORIZATION
+# KPI CATEGORY & DEFAULT DEFINITIONS
 # =========================================================
-KNOWN_SEARCH_KPIS = [
-    "Trade Searches",
-    "Seller Searches",
-    "Mobile Searches",
-    "Android Searches",
-    "IOS Searches",
-    "Total Searches",
-    "Searches excluding top 20 Sellers",
-    "Daily Active searchers",
-    "Final Zero Result Search",
-    "Numeric Searches",
-]
+KPI_GROUPS = {
+    "Main KPIs": {
+        "metrics": [
+            "Txn/100 Searches - removing top 20",
+            "Mean Purchase Position - Search",
+            "Txn from Top 10 position in %",
+            "Zero Search Result % after removing top 20 sellers",
+            "Transactor/Searcher",
+            "ABL TXN/Total",
+            "NI/TXN",
+        ],
+        "defaults": [
+            "Txn/100 Searches - removing top 20",
+            "Zero Search Result % after removing top 20 sellers",
+            "Transactor/Searcher",
+            "NI/TXN",
+        ],
+    },
+    "Searches": {
+        "metrics": [
+            "Total Searches",
+            "Daily Active searchers",
+            "Searches by top 20",
+            "Other touch point searches",
+            "Searches excluding top 20 Sellers",
+            "Zero Result Searches",
+            "Zero Result by top 20 sellers",
+            "Final Zero Result Search",
+        ],
+        "defaults": ["Total Searches", "Searches excluding top 20 Sellers"],
+    },
+    "Platform wise searches": {
+        "metrics": [
+            "Trade Searches",
+            "Seller Searches",
+            "Mobile Searches",
+            "Android Searches",
+            "IOS Searches",
+            "Trade Searchers",
+            "Seller Searchers",
+            "Mobile Searchers",
+            "Android Searchers",
+            "IOS Searchers",
+        ],
+        "defaults": [],
+    },
+    "Transaction Overall & Platform Wise": {
+        "metrics": [
+            "bl search txn",
+            "Unique Transactors",
+            "Android",
+            "Desktop",
+            "iOS",
+            "imob",
+            "Andorid transactor",
+            "desktop transactor",
+            "ios tranactor",
+            "imob transactor",
+            "ABL Txn",
+            "Txn from Top 10 position",
+            "Bizfeed Txn - BL search page",
+        ],
+        "defaults": ["bl search txn"],
+    },
+    "Transaction DLP wise": {
+        "metrics": [
+            "Global Txn",
+            "Global Txr",
+            "All India Txn",
+            "All India Txr",
+            "Foriegn Txn",
+            "Foriegn Txr",
+            "Local Txn",
+            "Local Txr",
+            "Hyper Local Txn",
+            "Hyper Local Txr",
+        ],
+        "defaults": [],
+    },
+    "Transaction GRID Wise": {
+        "metrics": [
+            "H/L NR Txn",
+            "H/L NR Txn ABL",
+            "H/L R Txn",
+            "H/L R Txn ABL",
+            "I/G NR Txn",
+            "I/G NR Txn ABL",
+            "I/G R Txn",
+            "I/G R Txn ABL",
+            "Foriegn GRID Txn",
+            "Foriegn GRID Txn ABL",
+        ],
+        "defaults": [],
+    },
+    "Search NI": {
+        "metrics": [
+            "Search NI",
+            "Search NI Users",
+            "NI ABL",
+            "Search NI top 5",
+            "Search NI top 10",
+        ],
+        "defaults": ["Search NI"],
+    },
+    "Reason wise NI": {
+        "metrics": [
+            "wrong category",
+            "specification mismatch",
+            "wrong location",
+            "insufficient information",
+            "retail leads",
+            "brand issue",
+            "other",
+            "wrong search result",
+        ],
+        "defaults": [],
+    },
+    "DLP Wise NI": {
+        "metrics": [
+            "Global NI",
+            "Global NI User",
+            "All India NI",
+            "All India NI User",
+            "Foriegn NI",
+            "Foriegn NI User",
+            "Local NI",
+            "Local NI User",
+            "HyperLocal NI",
+            "HyperLocal NI User",
+        ],
+        "defaults": [],
+    },
+    "Device Wise NI": {
+        "metrics": [
+            "Desktop NI",
+            "Deskop NI user",
+            "Android NI",
+            "Android NI User",
+            "IOS NI",
+            "IOS NI User",
+            "Mobile NI",
+            "Mobile NI User",
+        ],
+        "defaults": [],
+    },
+    "Grid Wise NI": {
+        "metrics": [
+            "H/L NR NI",
+            "H/L NR NI ABL",
+            "H/L R NI",
+            "H/L R NI ABL",
+            "I/G NR NI",
+            "I/G NR NI ABL",
+            "I/G R NI",
+            "I/G R NI ABL",
+            "Foriegn GRID NI",
+            "Foriegn GRID NI ABL",
+        ],
+        "defaults": [],
+    },
+}
 
-KNOWN_TXN_KPIS = [
-    "BL Search API Txn",
-    "bl search txn",
-    "Android",
-    "Desktop",
-    "iOS",
-    "Unique Transactors",
-    "Txn from Top 10 position",
-    "Bizfeed Txn - BL search page",
-    "Numeric Searches Txn",
-]
-
-# Auto-discover remaining dynamic sheet columns
-existing_cols = [c for c in df.columns if c != "Date"]
-uncategorized_cols = [
-    c
-    for c in existing_cols
-    if c not in KNOWN_SEARCH_KPIS and c not in KNOWN_TXN_KPIS
-]
-
-SEARCH_KPIS = [c for c in KNOWN_SEARCH_KPIS if c in df.columns]
-TXN_KPIS = [c for c in KNOWN_TXN_KPIS if c in df.columns]
-
-for col in uncategorized_cols:
-  if any(
-      kw in col.lower()
-      for kw in ["txn", "transact", "order", "buyer", "seller"]
-  ):
-    TXN_KPIS.append(col)
-  else:
-    SEARCH_KPIS.append(col)
-
-# =========================================================
-# DERIVED KPIs
-# =========================================================
+# Derive extra dynamic KPIs if necessary columns exist
 if (
     "BL Search API Txn" in df.columns
     and "Searches excluding top 20 Sellers" in df.columns
@@ -200,15 +287,6 @@ if (
   df["Txn/100 Searches - removing top 20"] = (
       df["BL Search API Txn"]
       / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
-  ).fillna(0) * 100
-
-if (
-    "Txn from Top 10 position" in df.columns
-    and "BL Search API Txn" in df.columns
-):
-  df["Txn from Top 10 position in %"] = (
-      df["Txn from Top 10 position"]
-      / df["BL Search API Txn"].replace(0, pd.NA)
   ).fillna(0) * 100
 
 if (
@@ -220,73 +298,66 @@ if (
       / df["Searches excluding top 20 Sellers"].replace(0, pd.NA)
   ).fillna(0) * 100
 
-if "Numeric Searches Txn" in df.columns and "Numeric Searches" in df.columns:
-  df["Numeric Searches Txn/100 Searches"] = (
-      df["Numeric Searches Txn"] / df["Numeric Searches"].replace(0, pd.NA)
-  ).fillna(0) * 100
-
-KPI_METRICS = [
-    c
-    for c in [
-        "Txn/100 Searches - removing top 20",
-        "Mean Purchase Position - Search",
-        "Txn from Top 10 position in %",
-        "Zero Search Result % after removing top 20 sellers",
-        "Numeric Searches Txn/100 Searches",
-    ]
-    if c in df.columns
-]
+# Initialize Session State Defaults
+for cat, data in KPI_GROUPS.items():
+  key = f"selected_{cat}"
+  if key not in st.session_state:
+    # Filter defaults to only those present in sheet columns
+    st.session_state[key] = [d for d in data["defaults"] if d in df.columns]
 
 # =========================================================
-# SIDEBAR FILTERS
-# =========================================================
-st.sidebar.markdown(
-    "<h2 style='font-size:24px;'>Dashboard Filters</h2>", unsafe_allow_html=True
-)
-
-
-def chip_selector(section_name, items, state_key):
-  st.sidebar.markdown(f"### {section_name}")
-
-  col_a, col_b = st.sidebar.columns(2)
-  if col_a.button("Select All", key=f"all_{state_key}"):
-    st.session_state[state_key] = items.copy()
-  if col_b.button("Clear All", key=f"clear_{state_key}"):
-    st.session_state[state_key] = []
-
-  if state_key not in st.session_state:
-    st.session_state[state_key] = []
-
-  cols = st.sidebar.columns(2)
-  for idx, item in enumerate(items):
-    with cols[idx % 2]:
-      checked = st.checkbox(
-          item,
-          value=item in st.session_state[state_key],
-          key=f"{state_key}_{item}",
-      )
-      if checked and item not in st.session_state[state_key]:
-        st.session_state[state_key].append(item)
-      elif not checked and item in st.session_state[state_key]:
-        st.session_state[state_key].remove(item)
-
-
-chip_selector("Searches Data", SEARCH_KPIS, "selected_searches")
-st.sidebar.markdown("---")
-chip_selector("Txn Data", TXN_KPIS, "selected_txns")
-st.sidebar.markdown("---")
-chip_selector("Derived KPIs", KPI_METRICS, "selected_kpis")
-
-# =========================================================
-# HEADER & CONTROL PANEL
+# HEADER & TOP-LEVEL SELECTION PANEL
 # =========================================================
 st.title("📊 BL Search Dashboard")
-st.markdown(
-    "<div class='small-subtitle'>Real-time BL Search KPIs & Automated Google"
-    " Sheets Sync</div>",
-    unsafe_allow_html=True,
-)
 
+# Top Filter Container
+with st.container():
+  st.markdown("<div class='filter-card'>", unsafe_allow_html=True)
+
+  col_hdr1, col_hdr2, col_hdr3 = st.columns([2, 1, 1])
+  with col_hdr1:
+    st.markdown("### **Select KPIs**")
+  with col_hdr2:
+    if st.button("❌ Deselect All KPIs", use_container_width=True):
+      for cat in KPI_GROUPS.keys():
+        st.session_state[f"selected_{cat}"] = []
+      st.rerun()
+  with col_hdr3:
+    if st.button("🔄 Reset Defaults", use_container_width=True):
+      for cat, data in KPI_GROUPS.items():
+        st.session_state[f"selected_{cat}"] = [
+            d for d in data["defaults"] if d in df.columns
+        ]
+      st.rerun()
+
+  # Render expandable chip selector sections
+  for cat, data in KPI_GROUPS.items():
+    available_metrics = [m for m in data["metrics"] if m in df.columns]
+
+    # Show category expander
+    with st.expander(
+        f"➕ **{cat.upper()}** ({len(st.session_state[f'selected_{cat}'])} selected)",
+        expanded=(cat == "Main KPIs"),
+    ):
+      selected = st.multiselect(
+          label=f"Choose {cat} metrics",
+          options=available_metrics,
+          default=st.session_state[f"selected_{cat}"],
+          key=f"select_box_{cat}",
+          label_visibility="collapsed",
+      )
+      st.session_state[f"selected_{cat}"] = selected
+
+  st.markdown("</div>", unsafe_allow_html=True)
+
+# Combine all currently selected KPIs
+active_selected_kpis = []
+for cat in KPI_GROUPS.keys():
+  active_selected_kpis.extend(st.session_state[f"selected_{cat}"])
+
+# =========================================================
+# DATE COMPARISON CONTROLS
+# =========================================================
 with st.container():
   top1, top2 = st.columns(2)
   with top1:
@@ -297,78 +368,13 @@ with st.container():
   with top2:
     weeks_compare = st.selectbox("Weeks to Compare", list(range(1, 9)), index=3)
 
-# =========================================================
-# DATE COMPARISON LOGIC
-# =========================================================
 selected_date = pd.to_datetime(selected_date)
 comparison_dates = [
     selected_date - timedelta(days=7 * i) for i in range(weeks_compare)
 ]
-
 comparison_df = df[
     df["Date"].dt.date.isin([d.date() for d in comparison_dates])
 ].sort_values("Date", ascending=False)
-
-# =========================================================
-# EXECUTIVE KPI CARDS
-# =========================================================
-st.markdown("## Executive KPI Overview")
-
-card_metrics = [
-    c
-    for c in [
-        "Searches excluding top 20 Sellers",
-        "Daily Active searchers",
-        "Final Zero Result Search",
-        "BL Search API Txn",
-        "Unique Transactors",
-        "Txn/100 Searches - removing top 20",
-        "Zero Search Result % after removing top 20 sellers",
-        "Numeric Searches Txn/100 Searches",
-    ]
-    if c in df.columns
-]
-
-selected_df = df[df["Date"] == selected_date]
-latest = selected_df.iloc[0] if not selected_df.empty else df.iloc[-1]
-previous_df = df[df["Date"] < latest["Date"]]
-previous = previous_df.iloc[-1] if not previous_df.empty else latest
-
-for i in range(0, len(card_metrics), 4):
-  cols = st.columns(4)
-  for j in range(4):
-    if i + j >= len(card_metrics):
-      continue
-    metric = card_metrics[i + j]
-    current = latest[metric]
-    prev = previous[metric]
-    delta = current - prev
-    delta_pct = (delta / prev * 100) if prev != 0 else 0
-
-    positive = delta >= 0
-    badge_color = "#DCFCE7" if positive else "#FEE2E2"
-    text_color = "#15803D" if positive else "#DC2626"
-    arrow = "↑" if positive else "↓"
-    value_str = (
-        f"{current:.2f}%"
-        if ("%" in metric or "Txn/100" in metric or "Transactor/" in metric)
-        else f"{int(current):,}"
-    )
-
-    with cols[j]:
-      st.markdown(
-          f"""
-            <div class="metric-card">
-                <div class="metric-label">{metric}</div>
-                <div class="metric-value">{value_str}</div>
-                <span style="background:{badge_color}; color:{text_color}; padding:6px 12px; border-radius:999px; font-size:14px; font-weight:700;">
-                    {arrow} {abs(delta_pct):.2f}%
-                </span>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-  st.markdown("<br>", unsafe_allow_html=True)
 
 # =========================================================
 # TABS
@@ -380,32 +386,29 @@ tab1, tab2, tab3 = st.tabs(
 # =========================================================
 # TAB 1: KPI COMPARISON TABLE
 # =========================================================
-def build_comparison_table(metrics, title):
-  st.markdown(
-      f"<div class='section-title'>{title}</div>", unsafe_allow_html=True
-  )
-  if not metrics:
-    st.info("Select metrics from the sidebar filter to populate this section.")
-    return
-
-  table_df = comparison_df[["Date"] + metrics].copy()
-  table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
-
-  st.dataframe(table_df, use_container_width=True, height=350)
-
-
 with tab1:
-  build_comparison_table(
-      st.session_state.get("selected_searches", []), "Searches Data"
+  st.markdown(
+      "<div class='section-title'>KPI Comparison Table</div>",
+      unsafe_allow_html=True,
   )
-  st.markdown("---")
-  build_comparison_table(
-      st.session_state.get("selected_txns", []), "Transactions Data"
-  )
-  st.markdown("---")
-  build_comparison_table(
-      st.session_state.get("selected_kpis", []), "Derived KPIs"
-  )
+
+  if not active_selected_kpis:
+    st.info("Please select at least one KPI from the options above.")
+  else:
+    table_df = comparison_df[["Date"] + active_selected_kpis].copy()
+    table_df["Date"] = table_df["Date"].dt.strftime("%Y-%m-%d (%a)")
+
+    col_btn1, col_btn2 = st.columns([1, 4])
+    with col_btn1:
+      st.download_button(
+          "⬇ Export CSV",
+          data=table_df.to_csv(index=False),
+          file_name="kpi_comparison.csv",
+          mime="text/csv",
+          use_container_width=True,
+      )
+
+    st.dataframe(table_df, use_container_width=True, height=450)
 
 # =========================================================
 # TAB 2: TREND ANALYSIS
@@ -416,33 +419,30 @@ with tab2:
       unsafe_allow_html=True,
   )
 
-  col_t1, col_t2 = st.columns([2, 1])
-  with col_t1:
-    min_d, max_d = df["Date"].min().date(), df["Date"].max().date()
-    date_range = st.slider(
-        "Select Date Range for Trends",
-        min_value=min_d,
-        max_value=max_d,
-        value=(min_d, max_d),
-    )
-  with col_t2:
-    chart_type = st.radio(
-        "Chart Style", ["Line Chart", "Bar Chart"], horizontal=True
-    )
+  if not active_selected_kpis:
+    st.info("Select metrics from the options above to display charts.")
+  else:
+    col_t1, col_t2 = st.columns([2, 1])
+    with col_t1:
+      min_d, max_d = df["Date"].min().date(), df["Date"].max().date()
+      date_range = st.slider(
+          "Select Date Range for Trends",
+          min_value=min_d,
+          max_value=max_d,
+          value=(min_d, max_d),
+      )
+    with col_t2:
+      chart_type = st.radio(
+          "Chart Style", ["Line Chart", "Bar Chart"], horizontal=True
+      )
 
-  filtered_trend_df = df[
-      (df["Date"].dt.date >= date_range[0])
-      & (df["Date"].dt.date <= date_range[1])
-  ]
-
-  def render_chart(metrics, title):
-    st.subheader(title)
-    if not metrics:
-      st.info("Select metrics from sidebar to display chart.")
-      return
+    filtered_trend_df = df[
+        (df["Date"].dt.date >= date_range[0])
+        & (df["Date"].dt.date <= date_range[1])
+    ]
 
     fig = go.Figure()
-    for metric in metrics:
+    for metric in active_selected_kpis:
       if metric in filtered_trend_df.columns:
         if chart_type == "Line Chart":
           fig.add_trace(
@@ -465,18 +465,10 @@ with tab2:
     fig.update_layout(
         template="plotly_white",
         hovermode="x unified",
-        height=450,
+        height=500,
         margin=dict(l=20, r=20, t=30, b=20),
     )
     st.plotly_chart(fig, use_container_width=True)
-
-  render_chart(
-      st.session_state.get("selected_searches", []), "Search Trends"
-  )
-  render_chart(
-      st.session_state.get("selected_txns", []), "Transaction Trends"
-  )
-  render_chart(st.session_state.get("selected_kpis", []), "KPI Trends")
 
 # =========================================================
 # TAB 3: RAW DATA & SEARCH
@@ -496,7 +488,7 @@ with tab3:
     ]
 
   st.download_button(
-      "⬇ Download Filtered CSV",
+      "⬇ Download Full Raw CSV",
       data=raw_df.to_csv(index=False),
       file_name="bl_search_raw_data.csv",
       mime="text/csv",
